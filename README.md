@@ -73,3 +73,4 @@ Mock data ทั้งหมดรวมไว้ใน `composables/useMockData
 - Tabler Icons (CDN via nuxt.config head)
 - IBM Plex Sans Thai / Mono (Google Fonts)
 # PEA
+# PEA1.1
