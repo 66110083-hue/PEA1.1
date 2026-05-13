@@ -1,0 +1,23 @@
+{
+  "name": "powervision",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.1",
+    "leaflet": "^1.9.4",
+    "lucide-vue-next": "^1.0.0",
+    "nuxt": "^3.10.0",
+    "vue": "^3.4.0",
+    "vue-router": "latest"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.21"
+  }
+}
