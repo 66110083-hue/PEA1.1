@@ -1,47 +1,47 @@
 import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import { tmpdir } from 'node:os';
-import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, createError, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, getResponseStatusText } from 'file:///home/supanat01/PEA-main/node_modules/h3/dist/index.mjs';
+import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, createError, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, getResponseStatusText } from 'file:///home/supanat/PEA1.1/node_modules/h3/dist/index.mjs';
 import { Server } from 'node:http';
 import { resolve, dirname, join } from 'node:path';
 import crypto$1 from 'node:crypto';
 import { parentPort, threadId } from 'node:worker_threads';
-import { escapeHtml } from 'file:///home/supanat01/PEA-main/node_modules/@vue/shared/dist/shared.cjs.js';
-import viteNodeEntry_mjs from 'file:///home/supanat01/PEA-main/node_modules/@nuxt/vite-builder/dist/vite-node-entry.mjs';
-import { viteNodeFetch } from 'file:///home/supanat01/PEA-main/node_modules/@nuxt/vite-builder/dist/vite-node.mjs';
-import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'file:///home/supanat01/PEA-main/node_modules/vue-bundle-renderer/dist/runtime.mjs';
-import { parseURL, withoutBase, joinURL, getQuery, withQuery, withTrailingSlash, decodePath, withLeadingSlash, withoutTrailingSlash, encodePath, joinRelativeURL } from 'file:///home/supanat01/PEA-main/node_modules/ufo/dist/index.mjs';
-import { renderToString } from 'file:///home/supanat01/PEA-main/node_modules/vue/server-renderer/index.mjs';
-import destr, { destr as destr$1 } from 'file:///home/supanat01/PEA-main/node_modules/destr/dist/index.mjs';
-import { createHooks } from 'file:///home/supanat01/PEA-main/node_modules/hookable/dist/index.mjs';
-import { createFetch, Headers as Headers$1 } from 'file:///home/supanat01/PEA-main/node_modules/ofetch/dist/node.mjs';
-import { fetchNodeRequestHandler, callNodeRequestHandler } from 'file:///home/supanat01/PEA-main/node_modules/node-mock-http/dist/index.mjs';
-import { createStorage, defineDriver, prefixStorage } from 'file:///home/supanat01/PEA-main/node_modules/unstorage/dist/index.mjs';
-import unstorage_47drivers_47fs from 'file:///home/supanat01/PEA-main/node_modules/unstorage/drivers/fs.mjs';
-import fsDriver from 'file:///home/supanat01/PEA-main/node_modules/unstorage/drivers/fs-lite.mjs';
-import lruCache from 'file:///home/supanat01/PEA-main/node_modules/unstorage/drivers/lru-cache.mjs';
-import { digest } from 'file:///home/supanat01/PEA-main/node_modules/ohash/dist/index.mjs';
-import { klona } from 'file:///home/supanat01/PEA-main/node_modules/klona/dist/index.mjs';
-import defu, { defuFn } from 'file:///home/supanat01/PEA-main/node_modules/defu/dist/defu.mjs';
-import { snakeCase } from 'file:///home/supanat01/PEA-main/node_modules/scule/dist/index.mjs';
-import { getContext } from 'file:///home/supanat01/PEA-main/node_modules/unctx/dist/index.mjs';
-import { toRouteMatcher, createRouter } from 'file:///home/supanat01/PEA-main/node_modules/radix3/dist/index.mjs';
+import { escapeHtml } from 'file:///home/supanat/PEA1.1/node_modules/@vue/shared/dist/shared.cjs.js';
+import viteNodeEntry_mjs from 'file:///home/supanat/PEA1.1/node_modules/@nuxt/vite-builder/dist/vite-node-entry.mjs';
+import { viteNodeFetch } from 'file:///home/supanat/PEA1.1/node_modules/@nuxt/vite-builder/dist/vite-node.mjs';
+import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'file:///home/supanat/PEA1.1/node_modules/vue-bundle-renderer/dist/runtime.mjs';
+import { parseURL, withoutBase, joinURL, getQuery, withQuery, withTrailingSlash, decodePath, withLeadingSlash, withoutTrailingSlash, encodePath, joinRelativeURL } from 'file:///home/supanat/PEA1.1/node_modules/ufo/dist/index.mjs';
+import { renderToString } from 'file:///home/supanat/PEA1.1/node_modules/vue/server-renderer/index.mjs';
+import destr, { destr as destr$1 } from 'file:///home/supanat/PEA1.1/node_modules/destr/dist/index.mjs';
+import { createHooks } from 'file:///home/supanat/PEA1.1/node_modules/hookable/dist/index.mjs';
+import { createFetch, Headers as Headers$1 } from 'file:///home/supanat/PEA1.1/node_modules/ofetch/dist/node.mjs';
+import { fetchNodeRequestHandler, callNodeRequestHandler } from 'file:///home/supanat/PEA1.1/node_modules/node-mock-http/dist/index.mjs';
+import { createStorage, defineDriver, prefixStorage } from 'file:///home/supanat/PEA1.1/node_modules/unstorage/dist/index.mjs';
+import unstorage_47drivers_47fs from 'file:///home/supanat/PEA1.1/node_modules/unstorage/drivers/fs.mjs';
+import fsDriver from 'file:///home/supanat/PEA1.1/node_modules/unstorage/drivers/fs-lite.mjs';
+import lruCache from 'file:///home/supanat/PEA1.1/node_modules/unstorage/drivers/lru-cache.mjs';
+import { digest } from 'file:///home/supanat/PEA1.1/node_modules/ohash/dist/index.mjs';
+import { klona } from 'file:///home/supanat/PEA1.1/node_modules/klona/dist/index.mjs';
+import defu, { defuFn } from 'file:///home/supanat/PEA1.1/node_modules/defu/dist/defu.mjs';
+import { snakeCase } from 'file:///home/supanat/PEA1.1/node_modules/scule/dist/index.mjs';
+import { getContext } from 'file:///home/supanat/PEA1.1/node_modules/unctx/dist/index.mjs';
+import { toRouteMatcher, createRouter } from 'file:///home/supanat/PEA1.1/node_modules/radix3/dist/index.mjs';
 import { readFile } from 'node:fs/promises';
-import consola, { consola as consola$1 } from 'file:///home/supanat01/PEA-main/node_modules/consola/dist/index.mjs';
-import { ErrorParser } from 'file:///home/supanat01/PEA-main/node_modules/youch-core/build/index.js';
-import { Youch } from 'file:///home/supanat01/PEA-main/node_modules/youch/build/index.js';
-import { SourceMapConsumer } from 'file:///home/supanat01/PEA-main/node_modules/source-map/source-map.js';
+import consola, { consola as consola$1 } from 'file:///home/supanat/PEA1.1/node_modules/consola/dist/index.mjs';
+import { ErrorParser } from 'file:///home/supanat/PEA1.1/node_modules/youch-core/build/index.js';
+import { Youch } from 'file:///home/supanat/PEA1.1/node_modules/youch/build/index.js';
+import { SourceMapConsumer } from 'file:///home/supanat/PEA1.1/node_modules/source-map/source-map.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { stringify, uneval } from 'file:///home/supanat01/PEA-main/node_modules/devalue/index.js';
-import { captureRawStackTrace, parseRawStackTrace } from 'file:///home/supanat01/PEA-main/node_modules/errx/dist/index.js';
-import { isVNode, isRef, toValue } from 'file:///home/supanat01/PEA-main/node_modules/vue/index.mjs';
-import _wH6JrtIxmaSoA8lCPWFnE9z4lQeXW6H5z3l5aymEQw from 'file:///home/supanat01/PEA-main/node_modules/@nuxt/vite-builder/dist/fix-stacktrace.mjs';
+import { stringify, uneval } from 'file:///home/supanat/PEA1.1/node_modules/devalue/index.js';
+import { captureRawStackTrace, parseRawStackTrace } from 'file:///home/supanat/PEA1.1/node_modules/errx/dist/index.js';
+import { isVNode, isRef, toValue } from 'file:///home/supanat/PEA1.1/node_modules/vue/index.mjs';
+import _wH6JrtIxmaSoA8lCPWFnE9z4lQeXW6H5z3l5aymEQw from 'file:///home/supanat/PEA1.1/node_modules/@nuxt/vite-builder/dist/fix-stacktrace.mjs';
 import { promises } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname as dirname$1, resolve as resolve$1 } from 'file:///home/supanat01/PEA-main/node_modules/pathe/dist/index.mjs';
-import { createHead as createHead$1, propsToString, renderSSRHead } from 'file:///home/supanat01/PEA-main/node_modules/unhead/dist/server.mjs';
-import { DeprecationsPlugin, PromisesPlugin, TemplateParamsPlugin, AliasSortingPlugin } from 'file:///home/supanat01/PEA-main/node_modules/unhead/dist/plugins.mjs';
-import { walkResolver } from 'file:///home/supanat01/PEA-main/node_modules/unhead/dist/utils.mjs';
+import { dirname as dirname$1, resolve as resolve$1 } from 'file:///home/supanat/PEA1.1/node_modules/pathe/dist/index.mjs';
+import { createHead as createHead$1, propsToString, renderSSRHead } from 'file:///home/supanat/PEA1.1/node_modules/unhead/dist/server.mjs';
+import { DeprecationsPlugin, PromisesPlugin, TemplateParamsPlugin, AliasSortingPlugin } from 'file:///home/supanat/PEA1.1/node_modules/unhead/dist/plugins.mjs';
+import { walkResolver } from 'file:///home/supanat/PEA1.1/node_modules/unhead/dist/utils.mjs';
 
-const serverAssets = [{"baseName":"server","dir":"/home/supanat01/PEA-main/server/assets"}];
+const serverAssets = [{"baseName":"server","dir":"/home/supanat/PEA1.1/server/assets"}];
 
 const assets$1 = createStorage();
 
@@ -62,7 +62,7 @@ function normalizeFsKey (item) {
   return `${prefix}-${hash}`
 }
 
-const _47home_47supanat01_47PEA_45main_47node_modules_47_64nuxt_47nitro_45server_47dist_47runtime_47utils_47cache_45driver_46js = defineDriver(
+const _47home_47supanat_47PEA1_461_47node_modules_47_64nuxt_47nitro_45server_47dist_47runtime_47utils_47cache_45driver_46js = defineDriver(
   /**
    * @param {{ base?: string }} opts
    */
@@ -92,12 +92,12 @@ const storage = createStorage({});
 
 storage.mount('/assets', assets$1);
 
-storage.mount('root', unstorage_47drivers_47fs({"driver":"fs","readOnly":true,"base":"/home/supanat01/PEA-main","watchOptions":{"ignored":[null]}}));
-storage.mount('src', unstorage_47drivers_47fs({"driver":"fs","readOnly":true,"base":"/home/supanat01/PEA-main/server","watchOptions":{"ignored":[null]}}));
-storage.mount('cache:nuxt:payload', _47home_47supanat01_47PEA_45main_47node_modules_47_64nuxt_47nitro_45server_47dist_47runtime_47utils_47cache_45driver_46js({"driver":"/home/supanat01/PEA-main/node_modules/@nuxt/nitro-server/dist/runtime/utils/cache-driver.js","base":"/home/supanat01/PEA-main/.nuxt/cache/nuxt/payload"}));
-storage.mount('build', unstorage_47drivers_47fs({"driver":"fs","readOnly":false,"base":"/home/supanat01/PEA-main/.nuxt"}));
-storage.mount('cache', unstorage_47drivers_47fs({"driver":"fs","readOnly":false,"base":"/home/supanat01/PEA-main/.nuxt/cache"}));
-storage.mount('data', unstorage_47drivers_47fs({"driver":"fs","base":"/home/supanat01/PEA-main/.data/kv"}));
+storage.mount('root', unstorage_47drivers_47fs({"driver":"fs","readOnly":true,"base":"/home/supanat/PEA1.1","watchOptions":{"ignored":[null]}}));
+storage.mount('src', unstorage_47drivers_47fs({"driver":"fs","readOnly":true,"base":"/home/supanat/PEA1.1/server","watchOptions":{"ignored":[null]}}));
+storage.mount('cache:nuxt:payload', _47home_47supanat_47PEA1_461_47node_modules_47_64nuxt_47nitro_45server_47dist_47runtime_47utils_47cache_45driver_46js({"driver":"/home/supanat/PEA1.1/node_modules/@nuxt/nitro-server/dist/runtime/utils/cache-driver.js","base":"/home/supanat/PEA1.1/.nuxt/cache/nuxt/payload"}));
+storage.mount('build', unstorage_47drivers_47fs({"driver":"fs","readOnly":false,"base":"/home/supanat/PEA1.1/.nuxt"}));
+storage.mount('cache', unstorage_47drivers_47fs({"driver":"fs","readOnly":false,"base":"/home/supanat/PEA1.1/.nuxt/cache"}));
+storage.mount('data', unstorage_47drivers_47fs({"driver":"fs","base":"/home/supanat/PEA1.1/.data/kv"}));
 
 function useStorage(base = "") {
   return base ? prefixStorage(storage, base) : storage;
@@ -2092,13 +2092,13 @@ if (!window.__NUXT_DEVTOOLS_TIME_METRIC__) {
 window.__NUXT_DEVTOOLS_TIME_METRIC__.appInit = Date.now()
 `;
 
-const _xcM3TQDdGFIrFLQiumPE0ru2LvjOrwJi_31ixjRKQI0 = (function(nitro) {
+const _56aa6OBse6_TVUz9KyliuRV_88201txTtbht72hhTI = (function(nitro) {
   nitro.hooks.hook("render:html", (htmlContext) => {
     htmlContext.head.push(`<script>${script}<\/script>`);
   });
 });
 
-const rootDir = "/home/supanat01/PEA-main";
+const rootDir = "/home/supanat/PEA1.1";
 
 const appHead = {"meta":[{"name":"viewport","content":"width=device-width, initial-scale=1"},{"charset":"utf-8"}],"link":[{"rel":"preconnect","href":"https://fonts.googleapis.com"},{"rel":"preconnect","href":"https://fonts.gstatic.com","crossorigin":""},{"rel":"stylesheet","href":"https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"},{"rel":"stylesheet","href":"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"},{"rel":"stylesheet","href":"https://cdn.jsdelivr.net/gh/theLoop/themify-icons@master/css/themify-icons.css"}],"style":[],"script":[],"noscript":[],"title":"PEA-Smart-Energy — ระบบติดตามพลังงาน 3 เฟส"};
 
@@ -2124,7 +2124,7 @@ const asyncContext = getContext("nuxt-dev", {
 	asyncContext: true,
 	AsyncLocalStorage
 });
-const _nvRQlKynmRpMmkL4_gVkVav4_JWVquSFqilvF6dU7tc = (nitroApp) => {
+const _IikanPmcZAuu0moO6FpxZab5Jl0moDjrBG71jXXwk = (nitroApp) => {
 	const handler = nitroApp.h3App.handler;
 	nitroApp.h3App.handler = (event) => {
 		return asyncContext.callAsync({
@@ -2200,8 +2200,8 @@ function onConsoleLog(callback) {
 }
 
 const plugins = [
-  _xcM3TQDdGFIrFLQiumPE0ru2LvjOrwJi_31ixjRKQI0,
-_nvRQlKynmRpMmkL4_gVkVav4_JWVquSFqilvF6dU7tc,
+  _56aa6OBse6_TVUz9KyliuRV_88201txTtbht72hhTI,
+_IikanPmcZAuu0moO6FpxZab5Jl0moDjrBG71jXXwk,
 _wH6JrtIxmaSoA8lCPWFnE9z4lQeXW6H5z3l5aymEQw
 ];
 
@@ -2230,7 +2230,7 @@ function getAsset (id) {
 
 const METHODS = /* @__PURE__ */ new Set(["HEAD", "GET"]);
 const EncodingMap = { gzip: ".gz", br: ".br" };
-const _CI3MH0 = eventHandler((event) => {
+const _jzSHqj = eventHandler((event) => {
   if (event.method && !METHODS.has(event.method)) {
     return;
   }
@@ -2675,13 +2675,13 @@ async function getIslandContext(event) {
 	};
 }
 
-const _lazy_P77Uj4 = () => Promise.resolve().then(function () { return renderer; });
+const _lazy_5ogjpH = () => Promise.resolve().then(function () { return renderer; });
 
 const handlers = [
-  { route: '', handler: _CI3MH0, lazy: false, middleware: true, method: undefined },
-  { route: '/__nuxt_error', handler: _lazy_P77Uj4, lazy: true, middleware: false, method: undefined },
+  { route: '', handler: _jzSHqj, lazy: false, middleware: true, method: undefined },
+  { route: '/__nuxt_error', handler: _lazy_5ogjpH, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: handler$1, lazy: false, middleware: false, method: undefined },
-  { route: '/**', handler: _lazy_P77Uj4, lazy: true, middleware: false, method: undefined }
+  { route: '/**', handler: _lazy_5ogjpH, lazy: true, middleware: false, method: undefined }
 ];
 
 function createNitroApp() {
