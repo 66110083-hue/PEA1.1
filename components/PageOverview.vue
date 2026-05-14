@@ -87,7 +87,7 @@ watch([activeMetric, activePhases], refreshChart)
       <div class="card-header-dashboard">
         <div class="card-title">
           <i class="ti ti-chart-line text-green" />
-          <span>ข้อมูลย้อนหลัง 1,000 จุด</span>
+          <span>ข้อมูลย้อนหลัง</span>
         </div>
 
         <div class="controls-group">

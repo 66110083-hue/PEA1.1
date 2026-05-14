@@ -1,4 +1,16 @@
-node_modules
+# Nuxt
+.nuxt/
+.output/
+
+# Node
+node_modules/
+
+# Vite cache
+.vite/
+dist/
+
+# logs
+*.lognode_modules
 .nuxt
 .output
 dist
