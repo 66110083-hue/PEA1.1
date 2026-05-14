@@ -101,12 +101,12 @@ const navSystem = [
 ]
 
 const pageMap: Record<string, any> = {
-  overview:  defineAsyncComponent(() => import('~/components/PageOverview.vue')),
-  map:       defineAsyncComponent(() => import('~/components/PageMap.vue')),
-  alerts:    defineAsyncComponent(() => import('~/components/PageAlerts.vue')),
-  history:   defineAsyncComponent(() => import('~/components/PageHistory.vue')),
-  breakeven: defineAsyncComponent(() => import('~/components/PageBreakeven.vue')),
-  settings:  defineAsyncComponent(() => import('~/components/PageSettings.vue')),
+  overview:  defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
+  map:       defineAsyncComponent(() => import('~/Pages/PageMap.vue')),
+  alerts:    defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
+  history:   defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
+  breakeven: defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
+  settings:  defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
 }
 
 const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overview)

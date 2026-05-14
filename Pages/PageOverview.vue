@@ -1,75 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { usePhaseSelection } from '~/composables/usePhaseSelection'
-import { useEnergyData } from '~/composables/useEnergyData'
-import { useEnergyChart } from '~/composables/useEnergyChart'
+import { useDashboard, METRIC_TABS } from '~/composables/useDashboard.ts'
 import '~/assets/css/dashboard-compact.css'
-import PhaseCard     from '~/components/ui/PhaseCard.vue'
-import EnergyFilter  from '~/components/ui/EnergyFilter.vue'
-import PhaseSelector from '~/components/ui/PhaseSelector.vue'
+import PhaseCard     from '~/Pages/ui/PhaseCard.vue'
+import EnergyFilter  from '~/Pages/ui/EnergyFilter.vue'
+import PhaseSelector from '~/Pages/ui/PhaseSelector.vue'
 
-// ─── State ───────────────────────────────────────────────
-const activeMetric = ref('current')
-const hasData      = ref(false)        // ← ตัวควบคุมว่ามีข้อมูลแล้วหรือยัง
-let autoRefreshTimer: any = null
-
-const { PHASES, activePhases }                                        = usePhaseSelection()
-const { allData, isLoading, latest, statistics, balanceData, unit, lastUpdateText } = useEnergyData(activeMetric, activePhases, PHASES)
-const { init, refreshChart }                                          = useEnergyChart('historyLineChart', allData, activeMetric, activePhases, PHASES)
-
-const METRIC_TABS = [
-  { key: 'current', label: 'Current (A)' },
-  { key: 'voltage', label: 'Voltage (V)' },
-  { key: 'power',   label: 'Power (kW)'  },
-]
-
-// ─── Fetch ───────────────────────────────────────────────
-const handleFilter = async (f: any) => {
-  isLoading.value = true
-
-  await new Promise(r => setTimeout(r, 800))
-  // TODO: แทนด้วย → allData.value = await $fetch(`/api/...`)
-  const now = new Date()
-  now.setMinutes(Math.floor(now.getMinutes() / 10) * 10, 0, 0)
-  allData.value = Array.from({ length: 1000 }, (_, i) => {
-    const t   = new Date(now.getTime() - (999 - i) * 10 * 60000)
-    const rnd = (b: number, r: number) => +(b + (Math.random() - 0.5) * r).toFixed(1)
-    return {
-      label:     `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`,
-      timestamp: t,
-      current:   { A: rnd(60,8),  B: rnd(62,7),  C: rnd(58,9)  },
-      voltage:   { A: rnd(220,3), B: rnd(219,3),  C: rnd(221,3) },
-      power:     { A: rnd(12,2),  B: rnd(13,2),   C: rnd(11,2)  },
-    }
-  })
-
-  isLoading.value = false
-  hasData.value   = true   // ← เปิดให้แสดง Component
-  await nextTick()
-  init()
-  refreshChart()
-}
-
-// ─── Lifecycle ───────────────────────────────────────────
-onMounted(() => {
-  setTimeout(() => init(), 150)  // แค่ init chart canvas ก่อน ยังไม่ดึงข้อมูล
-
-  autoRefreshTimer = setInterval(() => {
-    if (allData.value.length > 0) {   // รันเฉพาะเมื่อมีข้อมูลแล้ว
-      handleFilter({})
-    }
-  }, 10 * 60 * 1000)
-})
-
-onUnmounted(() => clearInterval(autoRefreshTimer))
-
-watch([activeMetric, activePhases], refreshChart)
+const {
+  activeMetric, activePhases,
+  hasData, isLoading,
+  PHASES, latest, statistics, balanceData, unit, lastUpdateText,
+  handleFilter,
+} = useDashboard()
 </script>
 
 <template>
   <div class="main-content">
 
-    <!-- Phase Cards — ซ่อนจนกว่าจะมีข้อมูล -->
+    <!-- Phase Cards -->
     <template v-if="hasData">
       <div class="phase-grid">
         <PhaseCard
@@ -103,7 +50,7 @@ watch([activeMetric, activePhases], refreshChart)
         </div>
       </div>
 
-      <!-- Empty state — ก่อนกดดึงข้อมูล -->
+      <!-- Empty state -->
       <div v-if="!hasData && !isLoading" class="empty-state">
         <i class="ti ti-map-pin" style="font-size:32px;color:var(--color-text-3)" />
         <div style="font-weight:500;color:var(--color-text-2)">เลือกจุดติดตั้งและวันที่</div>
@@ -122,7 +69,7 @@ watch([activeMetric, activePhases], refreshChart)
       </div>
     </div>
 
-    <!-- Stats + Balance — ซ่อนจนกว่าจะมีข้อมูล -->
+    <!-- Stats + Balance -->
     <template v-if="hasData">
       <div class="equal-height-row">
 
