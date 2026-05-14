@@ -1,4 +1,4 @@
-# PEA — Energy Monitor Dashboard (Nuxt 3 Prototype)
+# P2A — Energy Monitor Dashboard (Nuxt 3 Prototype)
 
 ระบบติดตามพลังงานไฟฟ้า 3 เฟส — **Prototype พร้อม Mock Data**
 
