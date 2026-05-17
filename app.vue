@@ -1,3 +1,46 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+
+const currentPage = ref('overview')
+
+const navMain = [
+  { to: 'overview',    label: 'ภาพรวม',          icon: 'ti-layout-dashboard' },
+  { to: 'map',         label: 'แผนที่จุดติดตั้ง', icon: 'ti-map-pin'          },
+  { to: 'transformer', label: 'จัดการหม้อแปลง',  icon: 'ti-bolt'             }, // ← เพิ่มตรงนี้
+  { to: 'alerts',      label: 'การแจ้งเตือน',     icon: 'ti-bell-ringing'     },
+]
+
+const navAnalysis = [
+  { to: 'history',  label: 'ข้อมูลย้อนหลัง', icon: 'ti-history' },
+  { to: 'breakeven',label: 'จุดคุ้มทุน', icon: 'ti-calculator' },
+]
+
+const navSystem = [
+  { to: 'settings', label: 'ตั้งค่าระบบ', icon: 'ti-settings' },
+]
+
+const pageMap: Record<string, any> = {
+  overview:  defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
+  map:       defineAsyncComponent(() => import('~/Pages/PageMap.vue')),
+  alerts:    defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
+  history:   defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
+  breakeven: defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
+  settings:  defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
+  transformer: defineAsyncComponent(() => import('~/Pages/PageTransformerManagement.vue')),
+}
+
+const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overview)
+
+// Clock
+const clock = ref('')
+let clockTimer: any
+function updateClock() {
+  clock.value = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+onMounted(() => { updateClock(); clockTimer = setInterval(updateClock, 1000) })
+onBeforeUnmount(() => clearInterval(clockTimer))
+
+</script>
 <template>
   <div class="layout">
     <!-- Sidebar -->
@@ -80,43 +123,4 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 
-const currentPage = ref('overview')
-
-const navMain = [
-  { to: 'overview', label: 'ภาพรวม', icon: 'ti-layout-dashboard' },
-  { to: 'map',      label: 'แผนที่จุดติดตั้ง', icon: 'ti-map-pin' },
-  { to: 'alerts',   label: 'การแจ้งเตือน', icon: 'ti-bell-ringing' },
-]
-
-const navAnalysis = [
-  { to: 'history',  label: 'ข้อมูลย้อนหลัง', icon: 'ti-history' },
-  { to: 'breakeven',label: 'จุดคุ้มทุน', icon: 'ti-calculator' },
-]
-
-const navSystem = [
-  { to: 'settings', label: 'ตั้งค่าระบบ', icon: 'ti-settings' },
-]
-
-const pageMap: Record<string, any> = {
-  overview:  defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
-  map:       defineAsyncComponent(() => import('~/Pages/PageMap.vue')),
-  alerts:    defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
-  history:   defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
-  breakeven: defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
-  settings:  defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
-}
-
-const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overview)
-
-// Clock
-const clock = ref('')
-let clockTimer: any
-function updateClock() {
-  clock.value = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
-onMounted(() => { updateClock(); clockTimer = setInterval(updateClock, 1000) })
-onBeforeUnmount(() => clearInterval(clockTimer))
-</script>
