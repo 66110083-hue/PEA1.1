@@ -1,6 +1,6 @@
 // composables/useEnergyData.ts
 import { ref, computed } from 'vue'
-import { allSites } from './usesitedata' // ดึงข้อมูลดิบรายชื่อไซต์มาใช้งาน
+import { allSites } from '~/composables/useSiteData' // ดึงข้อมูลดิบรายชื่อไซต์มาใช้งาน
 
 // ─── ประกาศตัวแปรไว้นอกฟังก์ชันเพื่อเป็น Global State (แชร์ข้อมูลร่วมกันทุกหน้า) ───
 const selectedSiteId = ref<string>('M-01') // ไอดีไซต์ที่กำลังเลือกดูอยู่ปัจจุบัน

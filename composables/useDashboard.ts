@@ -1,4 +1,5 @@
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+// composables/useDashboard.ts
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { usePhaseSelection } from '~/composables/usePhaseSelection'
 import { useEnergyData }     from '~/composables/useEnergyData'
 import { useEnergyChart }    from '~/composables/useEnergyChart'
@@ -9,37 +10,33 @@ export const METRIC_TABS = [
   { key: 'power',   label: 'Power (kW)'  },
 ] as const
 
-export type MetricKey = typeof METRIC_TABS[number]['key']
-
 export function useDashboard() {
-  // ─── State ─────────────────────────────────────────────
-  const activeMetric = ref<MetricKey>('current')
+  const activeMetric = ref('current')
   const hasData      = ref(false)
-  let   autoRefreshTimer: ReturnType<typeof setInterval> | null = null
+  let   autoRefreshTimer: any = null
 
-  // ─── Sub-composables ───────────────────────────────────
   const { PHASES, activePhases } = usePhaseSelection()
 
+  // ← ใช้ useEnergyData ตัวเดียวกันทั้งระบบ
   const {
     allData, isLoading, latest,
     statistics, balanceData, unit, lastUpdateText,
+    selectedSiteId,   // ← ได้ไซต์ที่เลือกมาด้วย
   } = useEnergyData(activeMetric, activePhases, PHASES)
 
   const { init, refreshChart } = useEnergyChart(
     'historyLineChart', allData, activeMetric, activePhases, PHASES,
   )
 
-  // ─── Data fetch / mock ─────────────────────────────────
+  // ─── handleFilter ดึงข้อมูลย้อนหลังของไซต์ที่เลือก ──
   const handleFilter = async (_filter: Record<string, unknown> = {}) => {
     isLoading.value = true
-
     await new Promise(r => setTimeout(r, 800))
 
+    // TODO: แทนด้วย → await $fetch(`/api/sites/${selectedSiteId.value}/history`)
     const now = new Date()
     now.setMinutes(Math.floor(now.getMinutes() / 10) * 10, 0, 0)
-
-    const rnd = (base: number, range: number) =>
-      +(base + (Math.random() - 0.5) * range).toFixed(1)
+    const rnd = (b: number, r: number) => +(b + (Math.random() - 0.5) * r).toFixed(1)
 
     allData.value = Array.from({ length: 1000 }, (_, i) => {
       const t = new Date(now.getTime() - (999 - i) * 10 * 60_000)
@@ -54,50 +51,28 @@ export function useDashboard() {
 
     isLoading.value = false
     hasData.value   = true
-
     await nextTick()
     init()
     refreshChart()
   }
 
-  // ─── Auto-refresh every 10 min ─────────────────────────
-  const startAutoRefresh = () => {
+  onMounted(() => {
+    setTimeout(() => init(), 150)
     autoRefreshTimer = setInterval(() => {
       if (allData.value.length > 0) handleFilter()
     }, 10 * 60 * 1000)
-  }
-
-  const stopAutoRefresh = () => {
-    if (autoRefreshTimer) clearInterval(autoRefreshTimer)
-  }
-
-  // ─── Lifecycle ─────────────────────────────────────────
-  onMounted(() => {
-    setTimeout(() => init(), 150)
-    startAutoRefresh()
   })
 
-  onUnmounted(stopAutoRefresh)
+  onUnmounted(() => {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer)
+  })
 
   watch([activeMetric, activePhases], refreshChart)
 
-  // ─── Expose ────────────────────────────────────────────
   return {
-    // state
-    activeMetric,
-    activePhases,
-    hasData,
-    isLoading,
-    // data
-    PHASES,
-    METRIC_TABS,
-    allData,
-    latest,
-    statistics,
-    balanceData,
-    unit,
-    lastUpdateText,
-    // actions
+    activeMetric, activePhases, hasData, isLoading,
+    PHASES, METRIC_TABS,
+    allData, latest, statistics, balanceData, unit, lastUpdateText,
     handleFilter,
   }
 }
