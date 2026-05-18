@@ -96,15 +96,10 @@ onBeforeUnmount(() => clearInterval(clockTimer))
     </aside>
 
     <!-- Topbar -->
-    <header class="topbar">
-      <div class="topbar-search">
-        <i class="ti ti-search" aria-hidden="true" />
-        ค้นหาจุดติดตั้ง...
-      </div>
       <div class="topbar-right">
         <div class="status-badge">
           <span class="status-dot" />
-          Online 26/30
+          Online 10/12
         </div>
         <div class="clock-display">{{ clock }}</div>
         <i class="ti ti-bell" style="font-size:18px;color:var(--color-text-2);cursor:pointer" aria-hidden="true" />
