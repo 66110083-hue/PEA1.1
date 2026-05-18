@@ -31,7 +31,7 @@
         <div class="site-info-item">
           <div class="site-info-label">อัพเดตล่าสุด</div>
           <div class="site-info-val" style="font-size:12px">
-            {{ site.status !== 'offline' ? '0:32 นาทีที่แล้ว' : '2 ชั่วโมง' }}
+            {{ site.status !== 'offline' ? lastUpdatedText : '—' }}
           </div>
         </div>
       </div>
@@ -40,8 +40,32 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Site } from '~/composables/useSiteData'
+
 defineProps<{ site: Site | null }>()
+
+// ── Auto-refresh ทุก 10 นาที ──────────────────────
+const lastUpdated = ref(new Date())
+let timer: ReturnType<typeof setInterval>
+
+function refresh() {
+  lastUpdated.value = new Date()
+  // TODO: เรียก fetch จริง เช่น emit('refresh') หรือ store.fetchSites()
+}
+
+const lastUpdatedText = computed(() => {
+  const h = String(lastUpdated.value.getHours()).padStart(2, '0')
+  const m = String(lastUpdated.value.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+})
+
+onMounted(() => {
+  timer = setInterval(refresh, 10 * 60 * 1000)
+})
+
+onUnmounted(() => clearInterval(timer))
+// ──────────────────────────────────────────────────
 
 function statusLabel(s: string) {
   return { online: 'ปกติ', alert: 'แจ้งเตือน', offline: 'ออฟไลน์' }[s] ?? s
