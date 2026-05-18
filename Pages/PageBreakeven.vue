@@ -9,9 +9,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useMockData } from '~/composables/useMockData'
-import SavingMetricGrid  from '~/components/SavingMetricGrid.vue'
-import BreakevenProgress from '/components/BreakevenProgress.vue'
-import PeakShaving       from '~/components/PeakShaving.vue'
+import SavingMetricGrid  from '~/components/PageBreakeven/SavingMetricGrid.vue'
+import BreakevenProgress from '~/components/PageBreakeven/BreakevenProgress.vue'
+import PeakShaving       from '~/components/PageBreakeven/PeakShaving.vue'
 
 const { getBreakevenData } = useMockData()
 

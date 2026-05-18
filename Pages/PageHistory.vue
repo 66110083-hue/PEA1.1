@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import HistoryChart   from '~/components/HistoryChart.vue'
-import EnergyAverages from '~/components/EnergyAverages.vue'
-import PeakUsage      from '~/components/PeakUsage.vue'
+import HistoryChart   from '~/components/PageHistory/HistoryChart.vue'
+import EnergyAverages from '~/components/PageHistory/EnergyAverages.vue'
+import PeakUsage      from '~/components/PageHistory/PeakUsage.vue'
 </script>
