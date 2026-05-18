@@ -104,7 +104,7 @@ onBeforeUnmount(() => clearInterval(clockTimer))
       <div class="topbar-right">
         <div class="status-badge">
           <span class="status-dot" />
-          Online 10/12
+          Online 26/30
         </div>
         <div class="clock-display">{{ clock }}</div>
         <i class="ti ti-bell" style="font-size:18px;color:var(--color-text-2);cursor:pointer" aria-hidden="true" />
