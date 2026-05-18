@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import CardWrapper from '~/Pages/ui/CardWrapper.vue'
+import CardWrapper from '~/components/PageOverview/CardWrapper.vue'
 
 // ─── Mock Data ───────────────────────────────────────────
 const transformers = ref([

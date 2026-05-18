@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useDashboard, METRIC_TABS } from '~/composables/useDashboard.ts'
 import '~/assets/css/dashboard-compact.css'
-import PhaseCard     from '~/Pages/ui/PhaseCard.vue'
-import EnergyFilter  from '~/Pages/ui/EnergyFilter.vue'
-import PhaseSelector from '~/Pages/ui/PhaseSelector.vue'
+import PhaseCard     from '~/components/PageOverview/PhaseCard.vue'
+import EnergyFilter  from '~/components/PageOverview/EnergyFilter.vue'
+import PhaseSelector from '~/components/PageOverview/PhaseSelector.vue'
 
 const {
   activeMetric, activePhases,
