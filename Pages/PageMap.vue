@@ -43,5 +43,6 @@ function onSelect(id: string) {
     />
     <SiteDetail :site="selectedSite" />
   </div>
+  
 </template>
 
