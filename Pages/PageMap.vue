@@ -1,18 +1,3 @@
-<template>
-  <div style="display:flex;flex-direction:column;gap:16px">
-    <LocationFilter
-      v-model:province="selectedProvince"
-      v-model:district="selectedDistrict"
-    />
-    <SiteMap
-      :sites="filteredSites"
-      :selected-site-id="selectedSite?.id ?? null"
-      @select="onSelect"
-    />
-    <SiteDetail :site="selectedSite" />
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
@@ -44,3 +29,19 @@ function onSelect(id: string) {
   selectedSite.value = selectedSite.value?.id === id ? null : (found ?? null)
 }
 </script>
+
+<template>
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <LocationFilter
+      v-model:province="selectedProvince"
+      v-model:district="selectedDistrict"
+    />
+    <SiteMap
+      :sites="filteredSites"
+      :selected-site-id="selectedSite?.id ?? null"
+      @select="onSelect"
+    />
+    <SiteDetail :site="selectedSite" />
+  </div>
+</template>
+
