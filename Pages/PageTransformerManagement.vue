@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CardWrapper          from '~/components/PageOverview/CardWrapper.vue'
-import TransformerFormModal from '~/components/TransformerFormModal.vue'
+import TransformerFormModal from '~/components/PageTransformer/TransformerFormModal.vue'
 import { useTransformer }   from '~/composables/useTransformer'
 
 const {
