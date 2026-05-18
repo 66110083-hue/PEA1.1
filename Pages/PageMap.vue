@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
-import LocationFilter from '../components/LocationFilter.vue'
-import SiteMap        from '../components/SiteMap.vue'
-import SiteDetail     from '../components/SiteDetail.vue'
+import LocationFilter from '../components/Page map/LocationFilter.vue'
+import SiteMap        from '../components/Page map/SiteMap.vue'
+import SiteDetail     from '../components/Page map/SiteDetail.vue'
 
 const { allSites } = useSiteData()
 
