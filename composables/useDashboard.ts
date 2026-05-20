@@ -11,85 +11,193 @@ export const METRIC_TABS = [
 ] as const
 
 export interface DashboardOptions {
-  /** ถ้าส่งมา จะดึงข้อมูลของหม้อแปลงตัวนี้ทันทีตอน mount */
   transformerId?: string
 }
 
 export function useDashboard(options: DashboardOptions = {}) {
-  const activeMetric     = ref('current')
-  const hasData          = ref(false)
-  let   autoRefreshTimer: ReturnType<typeof setInterval> | null = null
+
+  const activeMetric = ref('current')
+  const hasData      = ref(false)
+
+  let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
 
   const { PHASES, activePhases } = usePhaseSelection()
 
+  // ใช้ useEnergyData ตัวเดียวทั้งระบบ
   const {
-    allData, isLoading,
+    allData,
+    isLoading,
+
+    // ของเดิม
+    latest,
+    statistics,
+    balanceData,
+    unit,
+    lastUpdateText,
+    selectedSiteId,
+
+    // ของใหม่
     selectedTransformerId,
     realtimeSnapshot,
-    latest, statistics, balanceData,
-    unit, lastUpdateText,
     seedFromRealtime,
+
   } = useEnergyData(activeMetric, activePhases, PHASES)
 
   const { init, refreshChart } = useEnergyChart(
-    'historyLineChart', allData, activeMetric, activePhases, PHASES,
+    'historyLineChart',
+    allData,
+    activeMetric,
+    activePhases,
+    PHASES,
   )
 
-  // ── handleFilter ────────────────────────────────────────────────
-  // รับ transformerId ตรง ๆ หรือใช้ค่าที่ set ไว้ใน selectedTransformerId
+  // ─────────────────────────────────────────────
+  // handleFilter
+  // ─────────────────────────────────────────────
   const handleFilter = async (
     _filter: Record<string, unknown> = {},
     transformerId?: string,
   ) => {
-    // อัปเดต selected transformer ถ้าส่งมาใหม่
-    if (transformerId) selectedTransformerId.value = transformerId
+
+    // ถ้ามี transformer ใหม่ส่งมา
+    if (transformerId) {
+      selectedTransformerId.value = transformerId
+    }
 
     isLoading.value = true
 
-    // Seed ข้อมูลจาก realtimeSnapshot ของ transformer นั้นก่อน
-    // เพื่อให้ค่า base ของกราฟสอดคล้องกับตัวที่เลือก
+    // ใช้ realtime เป็นต้นทาง
     seedFromRealtime()
 
-    // TODO: แทนด้วย real API →
-    //   const raw = await $fetch(`/api/transformers/${selectedTransformerId.value}/history`)
-    //   allData.value = raw
     await new Promise(r => setTimeout(r, 600))
+
+    // TODO:
+    // await $fetch(`/api/transformers/${selectedTransformerId.value}/history`)
+
+    const now = new Date()
+
+    now.setMinutes(
+      Math.floor(now.getMinutes() / 10) * 10,
+      0,
+      0,
+    )
+
+    const rnd = (b: number, r: number) =>
+      +(b + (Math.random() - 0.5) * r).toFixed(1)
+
+    // สร้างข้อมูลย้อนหลัง
+    allData.value = Array.from({ length: 1000 }, (_, i) => {
+
+      const t = new Date(
+        now.getTime() - (999 - i) * 10 * 60_000,
+      )
+
+      return {
+        label:
+          `${String(t.getHours()).padStart(2, '0')}:` +
+          `${String(t.getMinutes()).padStart(2, '0')}`,
+
+        timestamp: t,
+
+        current: {
+          A: rnd(60, 8),
+          B: rnd(62, 7),
+          C: rnd(58, 9),
+        },
+
+        voltage: {
+          A: rnd(220, 3),
+          B: rnd(219, 3),
+          C: rnd(221, 3),
+        },
+
+        power: {
+          A: rnd(12, 2),
+          B: rnd(13, 2),
+          C: rnd(11, 2),
+        },
+      }
+    })
 
     isLoading.value = false
     hasData.value   = true
+
     await nextTick()
+
     init()
     refreshChart()
   }
 
-  // ── mount: ถ้ามี transformerId ส่งมาให้โหลดทันที ─────────────
+  // ─────────────────────────────────────────────
+  // mounted
+  // ─────────────────────────────────────────────
   onMounted(() => {
+
+    // ถ้ามี transformer ส่งมาให้โหลดทันที
     if (options.transformerId) {
-      selectedTransformerId.value = options.transformerId
-      setTimeout(() => handleFilter({}, options.transformerId), 150)
+
+      selectedTransformerId.value =
+        options.transformerId
+
+      setTimeout(() => {
+        handleFilter({}, options.transformerId)
+      }, 150)
+
     } else {
+
       setTimeout(() => init(), 150)
     }
 
-    // Auto-refresh ทุก 10 นาที
+    // auto refresh ทุก 10 นาที
     autoRefreshTimer = setInterval(() => {
-      if (allData.value.length > 0) handleFilter()
+
+      if (allData.value.length > 0) {
+        handleFilter()
+      }
+
     }, 10 * 60 * 1000)
   })
 
   onUnmounted(() => {
-    if (autoRefreshTimer) clearInterval(autoRefreshTimer)
+
+    if (autoRefreshTimer) {
+      clearInterval(autoRefreshTimer)
+    }
+
   })
 
-  watch([activeMetric, activePhases], refreshChart)
+  watch(
+    [activeMetric, activePhases],
+    refreshChart,
+  )
 
   return {
-    activeMetric, activePhases, hasData, isLoading,
-    PHASES, METRIC_TABS,
-    allData, latest, statistics, balanceData,
-    unit, lastUpdateText,
+
+    activeMetric,
+    activePhases,
+
+    hasData,
+    isLoading,
+
+    PHASES,
+    METRIC_TABS,
+
+    allData,
+
+    latest,
+    statistics,
+    balanceData,
+
+    unit,
+    lastUpdateText,
+
+    // ของเดิม
+    selectedSiteId,
+
+    // ของใหม่
     selectedTransformerId,
     realtimeSnapshot,
+
     handleFilter,
   }
 }
