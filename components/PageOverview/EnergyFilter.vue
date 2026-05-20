@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
 
-const props = defineProps<{ loading?: boolean }>()
-// 🔥 เพิ่มอีเวนต์ update:location เพื่อส่งค่าไปซูมบนแผนที่ทันทีแบบ Real-time
+// 🔥 เพิ่ม Props สำหรับดึงค่าเริ่มต้นจาก URL หลังกดย้อนกลับ
+const props = defineProps<{ 
+  loading?: boolean 
+  initProvince?: string
+  initDistrict?: string
+  initSiteId?: string
+}>()
+
 const emit = defineEmits(['apply', 'update:location'])
 
 // ดึงข้อมูลจาก Composable
 const { provinces, districtsByProvince, allSites } = useSiteData()
 
 // States สำหรับการเลือก
-const selectedProvince = ref('')
-const selectedDistrict = ref('')
-const selectedSiteId = ref('')
+const selectedProvince = ref(props.initProvince || '')
+const selectedDistrict = ref(props.initDistrict || '')
+const selectedSiteId = ref(props.initSiteId || '')
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 
 // ดึงรายชื่ออำเภอ เมื่อจังหวัดเปลี่ยน
@@ -31,7 +37,12 @@ const availableSites = computed(() => {
   })
 })
 
-// 🔥 ดักจับทุกครั้งที่มีการเปลี่ยน จังหวัด/อำเภอ/ไซต์ เพื่อส่งค่าไปให้แผนที่ซูมทันทีแบบ Real-time
+// ผูกตัวแปรเฝ้าดูถ้าระบบหลักมีการส่งค่าเก่ากลับมา (เช่น หลังกดย้อนกลับ)
+watch(() => props.initProvince, (val) => { selectedProvince.value = val || '' })
+watch(() => props.initDistrict, (val) => { selectedDistrict.value = val || '' })
+watch(() => props.initSiteId, (val) => { selectedSiteId.value = val || '' })
+
+// ดักจับทุกครั้งที่มีการเปลี่ยน จังหวัด/อำเภอ/ไซต์ เพื่อส่งค่าไปให้แผนที่ซูมทันทีแบบ Real-time
 watch([selectedProvince, selectedDistrict, selectedSiteId], () => {
   emit('update:location', {
     province: selectedProvince.value,

@@ -5,7 +5,6 @@ const currentPage = ref('overview')
 
 const navMain = [
   { to: 'overview',    label: 'ภาพรวม',          icon: 'ti-layout-dashboard' },
-  { to: 'map',         label: 'แผนที่จุดติดตั้ง', icon: 'ti-map-pin'          },
   { to: 'transformer', label: 'จัดการหม้อแปลง',  icon: 'ti-bolt'             }, // ← เพิ่มตรงนี้
   { to: 'alerts',      label: 'การแจ้งเตือน',     icon: 'ti-bell-ringing'     },
 ]
@@ -21,7 +20,6 @@ const navSystem = [
 
 const pageMap: Record<string, any> = {
   overview:  defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
-  map:       defineAsyncComponent(() => import('~/Pages/PageMap.vue')),
   alerts:    defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
   history:   defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
   breakeven: defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
