@@ -97,9 +97,8 @@ onBeforeUnmount(() => clearInterval(clockTimer))
 
     <!-- Topbar -->
     <header class="topbar">
-      <div class="topbar-search">
-        <i class="ti ti-search" aria-hidden="true" />
-        ค้นหาจุดติดตั้ง...
+      <div class="">
+        <i class="" />
       </div>
       <div class="topbar-right">
         <div class="status-badge">
