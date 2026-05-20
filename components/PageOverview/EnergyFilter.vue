@@ -3,7 +3,8 @@ import { ref, watch, computed } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
 
 const props = defineProps<{ loading?: boolean }>()
-const emit = defineEmits(['apply'])
+// 🔥 เพิ่มอีเวนต์ update:location เพื่อส่งค่าไปซูมบนแผนที่ทันทีแบบ Real-time
+const emit = defineEmits(['apply', 'update:location'])
 
 // ดึงข้อมูลจาก Composable
 const { provinces, districtsByProvince, allSites } = useSiteData()
@@ -16,16 +17,27 @@ const selectedDate = ref(new Date().toISOString().split('T')[0])
 
 // ดึงรายชื่ออำเภอ เมื่อจังหวัดเปลี่ยน
 const availableDistricts = computed(() => {
-  return selectedProvince.value ? districtsByProvince[selectedProvince.value] : []
+  return selectedProvince.value ? districtsByProvince[selectedProvince.value] ?? [] : []
 })
 
-// ดึงรายชื่อไซต์ เมื่ออำเภอเปลี่ยน
+// ดึงรายชื่อไซต์ตามระดับการเลือก
 const availableSites = computed(() => {
-  if (!selectedProvince.value || !selectedDistrict.value) return []
-  return allSites.filter(s => 
-    s.province === selectedProvince.value && 
-    s.district === selectedDistrict.value
-  )
+  if (!selectedProvince.value) return []
+  
+  return allSites.filter(s => {
+    const matchProvince = s.province === selectedProvince.value
+    const matchDistrict = selectedDistrict.value ? s.district === selectedDistrict.value : true
+    return matchProvince && matchDistrict
+  })
+})
+
+// 🔥 ดักจับทุกครั้งที่มีการเปลี่ยน จังหวัด/อำเภอ/ไซต์ เพื่อส่งค่าไปให้แผนที่ซูมทันทีแบบ Real-time
+watch([selectedProvince, selectedDistrict, selectedSiteId], () => {
+  emit('update:location', {
+    province: selectedProvince.value,
+    district: selectedDistrict.value,
+    siteId: selectedSiteId.value
+  })
 })
 
 // Watcher เพื่อ Reset ค่าเมื่อตัวแม่เปลี่ยน
@@ -51,7 +63,6 @@ const handleApply = () => {
 <template>
   <div class="filter-container">
     <div class="filter-group">
-      <!-- เลือกจังหวัด -->
       <div class="select-wrapper">
         <label>จังหวัด</label>
         <select v-model="selectedProvince" class="form-select-sm">
@@ -60,7 +71,6 @@ const handleApply = () => {
         </select>
       </div>
 
-      <!-- เลือกอำเภอ -->
       <div class="select-wrapper">
         <label>อำเภอ/เขต</label>
         <select v-model="selectedDistrict" class="form-select-sm" :disabled="!selectedProvince">
@@ -69,18 +79,16 @@ const handleApply = () => {
         </select>
       </div>
 
-      <!-- เลือกจุดติดตั้ง (Site) -->
       <div class="select-wrapper">
         <label>จุดติดตั้ง</label>
-        <select v-model="selectedSiteId" class="form-select-sm" :disabled="!selectedDistrict">
-          <option value="">เลือกจุดติดตั้ง</option>
+        <select v-model="selectedSiteId" class="form-select-sm" :disabled="!selectedProvince">
+          <option value="">เลือกจุดติดตั้งทั้งหมด</option>
           <option v-for="s in availableSites" :key="s.id" :value="s.id">
             [{{ s.id }}] {{ s.name }}
           </option>
         </select>
       </div>
 
-      <!-- เลือกวันที่ -->
       <div class="select-wrapper">
         <label>วันที่</label>
         <input type="date" v-model="selectedDate" class="form-control-sm" />
@@ -88,7 +96,7 @@ const handleApply = () => {
 
       <button 
         class="btn-apply" 
-        :disabled="loading || !selectedSiteId" 
+        :disabled="loading" 
         @click="handleApply"
       >
         <i v-if="loading" class="ti ti-loader-2 spin"></i>
@@ -105,26 +113,22 @@ const handleApply = () => {
   padding: 8px 12px;
   border-radius: var(--radius-md);
 }
-
 .filter-group {
   display: flex;
   align-items: flex-end;
   gap: 12px;
   flex-wrap: wrap;
 }
-
 .select-wrapper {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
 .select-wrapper label {
   font-size: 11px;
   color: var(--color-text-muted);
   font-weight: 600;
 }
-
 .form-select-sm, .form-control-sm {
   padding: 6px 10px;
   border-radius: 8px;
@@ -133,7 +137,6 @@ const handleApply = () => {
   background-color: var(--color-surface-2);
   min-width: 140px;
 }
-
 .btn-apply {
   background: var(--color-green);
   color: white;
@@ -147,12 +150,7 @@ const handleApply = () => {
   cursor: pointer;
   height: 35px;
 }
-
-.btn-apply:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
+.btn-apply:disabled { opacity: 0.6; cursor: not-allowed; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

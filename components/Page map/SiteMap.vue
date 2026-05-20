@@ -8,6 +8,7 @@ import type { Site } from '~/composables/useSiteData'
 const props = defineProps<{
   sites: Site[]
   selectedSiteId: string | null
+  filterTrigger?: number
 }>()
 
 const emit = defineEmits<{
@@ -44,21 +45,38 @@ function rebuildMarkers() {
 
 function zoomToSites(sites: Site[]) {
   if (!map || sites.length === 0) return
-  if (sites.length === 1) {
-    map.setView([sites[0].lat, sites[0].lng], 15, { animate: true })
-  } else {
-    const bounds = L.latLngBounds(sites.map(s => [s.lat, s.lng]))
-    map.fitBounds(bounds, { padding: [48, 48], animate: true })
-  }
+  
+  // รีเซ็ตการคำนวณพื้นที่ของขอบหน้าต่างแผนที่กันอาการบั๊กเรนเดอร์ไม่เต็มกล่อง
+  map.invalidateSize()
+
+  // หน่วงเวลาเพื่อให้แอนิเมชันลื่นไหลสมูทขึ้น
+  setTimeout(() => {
+    if (!map) return
+    if (sites.length === 1) {
+      // ซูมเจาะเดี่ยวระดับใกล้ (Close-up Zoom ระดับ 16)
+      map.setView([sites[0].lat, sites[0].lng], 16, { animate: true })
+    } else {
+      // ซูมขยายรัศมีจับเป็นกลุ่มให้เห็นครบถ้วนภายในขอบเขตพื้นที่ที่เลือก
+      const bounds = L.latLngBounds(sites.map(s => [s.lat, s.lng]))
+      map.fitBounds(bounds, { padding: [48, 48], animate: true })
+    }
+  }, 100)
 }
 
-// rebuild + zoom ทุกครั้งที่ sites เปลี่ยน
+// รับสัญญาณการกดปุ่มฟิลเตอร์ดึงข้อมูลจากภายนอก แล้วสั่งให้กล้องขยับซูมทันที
+watch(() => props.filterTrigger, () => {
+  if (props.sites && props.sites.length > 0) {
+    zoomToSites(props.sites)
+  }
+})
+
+// ปรับปรุงการขยับหมุดกรณีมีการเปลี่ยนข้อมูลภายในชุดเดิม
 watch(() => props.sites, (newSites) => {
   rebuildMarkers()
   zoomToSites(newSites)
 }, { deep: true })
 
-// highlight marker ที่เลือก
+// ไฮไลต์ขยายขนาดหมุดที่ถูกผู้ใช้งานเอาเมาส์คลิกเลือก
 watch(() => props.selectedSiteId, (id) => {
   markerMap.forEach((m, key) => {
     m.setStyle({
@@ -77,7 +95,6 @@ onMounted(() => {
     maxZoom: 19,
   }).addTo(map)
 
-  // build markers แล้ว zoom ให้ครอบทุก site ทันที
   rebuildMarkers()
   zoomToSites(props.sites)
 })

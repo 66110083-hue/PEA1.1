@@ -6,7 +6,7 @@ interface Props {
   max: number
   unit: string
   size?: number
-  sub?: string
+  sub?: stringa
 }
 
 const props = withDefaults(defineProps<Props>(), {
