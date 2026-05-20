@@ -1,3 +1,43 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import type { Site } from '~/composables/useSiteData'
+
+defineProps<{ site: Site | null }>()
+
+// ── Auto-refresh ทุก 10 นาที ──────────────────────
+const lastUpdated = ref(new Date())
+let timer: ReturnType<typeof setInterval>
+
+function refresh() {
+  lastUpdated.value = new Date()
+  // TODO: เรียก fetch จริง เช่น emit('refresh') หรือ store.fetchSites()
+}
+
+const lastUpdatedText = computed(() => {
+  const h = String(lastUpdated.value.getHours()).padStart(2, '0')
+  const m = String(lastUpdated.value.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+})
+
+onMounted(() => {
+  timer = setInterval(refresh, 10 * 60 * 1000)
+})
+
+onUnmounted(() => clearInterval(timer))
+// ──────────────────────────────────────────────────
+
+function statusLabel(s: string) {
+  return { online: 'ปกติ', alert: 'แจ้งเตือน', offline: 'ออฟไลน์' }[s] ?? s
+}
+function statusStyle(s: string) {
+  return ({
+    online:  { background: 'var(--color-green-bg)',  color: 'var(--color-green-text)' },
+    alert:   { background: 'var(--color-red-bg)',    color: 'var(--color-red-text)'   },
+    offline: { background: 'var(--color-amber-bg)',  color: 'var(--color-amber-text)' },
+  } as any)[s] ?? {}
+}
+</script>
+
 <template>
   <Transition name="page">
     <div v-if="site" class="card">
@@ -39,42 +79,3 @@
   </Transition>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import type { Site } from '~/composables/useSiteData'
-
-defineProps<{ site: Site | null }>()
-
-// ── Auto-refresh ทุก 10 นาที ──────────────────────
-const lastUpdated = ref(new Date())
-let timer: ReturnType<typeof setInterval>
-
-function refresh() {
-  lastUpdated.value = new Date()
-  // TODO: เรียก fetch จริง เช่น emit('refresh') หรือ store.fetchSites()
-}
-
-const lastUpdatedText = computed(() => {
-  const h = String(lastUpdated.value.getHours()).padStart(2, '0')
-  const m = String(lastUpdated.value.getMinutes()).padStart(2, '0')
-  return `${h}:${m}`
-})
-
-onMounted(() => {
-  timer = setInterval(refresh, 10 * 60 * 1000)
-})
-
-onUnmounted(() => clearInterval(timer))
-// ──────────────────────────────────────────────────
-
-function statusLabel(s: string) {
-  return { online: 'ปกติ', alert: 'แจ้งเตือน', offline: 'ออฟไลน์' }[s] ?? s
-}
-function statusStyle(s: string) {
-  return ({
-    online:  { background: 'var(--color-green-bg)',  color: 'var(--color-green-text)' },
-    alert:   { background: 'var(--color-red-bg)',    color: 'var(--color-red-text)'   },
-    offline: { background: 'var(--color-amber-bg)',  color: 'var(--color-amber-text)' },
-  } as any)[s] ?? {}
-}
-</script>

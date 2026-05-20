@@ -1,16 +1,3 @@
-<template>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title"><i class="ti ti-map-pin" /> แผนที่จุดติดตั้งมิเตอร์</div>
-      <div class="map-legend">
-        <span><span class="legend-dot" style="background:#1D9E75" />ปกติ</span>
-        <span><span class="legend-dot" style="background:#E24B4A" />แจ้งเตือน</span>
-        <span><span class="legend-dot" style="background:#BA7517" />ออฟไลน์</span>
-      </div>
-    </div>
-    <div ref="mapEl" style="height:360px;border-radius:8px;z-index:0" />
-  </div>
-</template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
@@ -97,3 +84,17 @@ onMounted(() => {
 
 onBeforeUnmount(() => { map?.remove(); map = null })
 </script>
+
+<template>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-map-pin" /> แผนที่จุดติดตั้งมิเตอร์</div>
+      <div class="map-legend">
+        <span><span class="legend-dot" style="background:#1D9E75" />ปกติ</span>
+        <span><span class="legend-dot" style="background:#E24B4A" />แจ้งเตือน</span>
+        <span><span class="legend-dot" style="background:#BA7517" />ออฟไลน์</span>
+      </div>
+    </div>
+    <div ref="mapEl" style="height:360px;border-radius:8px;z-index:0" />
+  </div>
+</template>

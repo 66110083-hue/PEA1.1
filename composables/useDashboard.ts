@@ -27,16 +27,12 @@ export function useDashboard(options: DashboardOptions = {}) {
   const {
     allData,
     isLoading,
-
-    // ของเดิม
     latest,
     statistics,
     balanceData,
     unit,
     lastUpdateText,
     selectedSiteId,
-
-    // ของใหม่
     selectedTransformerId,
     realtimeSnapshot,
     seedFromRealtime,

@@ -1,3 +1,44 @@
+<script setup lang="ts">
+import { computed, watch } from 'vue'
+import { provinces, districtsByProvince, allSites } from '~/composables/useSiteData'
+
+const province = defineModel<string>('province', { default: '' })
+const district = defineModel<string>('district', { default: '' })
+
+// เมื่อเปลี่ยนจังหวัด ล้างเขตอัตโนมัติ
+watch(province, () => { district.value = '' })
+
+const availableDistricts = computed(() =>
+  province.value ? districtsByProvince[province.value] ?? [] : []
+)
+
+const siteCount = computed(() => {
+  if (district.value)
+    return allSites.filter(s => s.province === province.value && s.district === district.value).length
+  if (province.value)
+    return allSites.filter(s => s.province === province.value).length
+  return allSites.length
+})
+
+function clearAll() {
+  province.value = ''
+  district.value = ''
+}
+</script>
+
+<style scoped>
+.filter-select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-1);
+  font-size: 13px;
+  cursor: pointer;
+  width: 100%;
+}
+.filter-select:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
 
 <template>
   <div class="card">
@@ -42,44 +83,3 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { computed, watch } from 'vue'
-import { provinces, districtsByProvince, allSites } from '~/composables/useSiteData'
-
-const province = defineModel<string>('province', { default: '' })
-const district = defineModel<string>('district', { default: '' })
-
-// เมื่อเปลี่ยนจังหวัด ล้างเขตอัตโนมัติ
-watch(province, () => { district.value = '' })
-
-const availableDistricts = computed(() =>
-  province.value ? districtsByProvince[province.value] ?? [] : []
-)
-
-const siteCount = computed(() => {
-  if (district.value)
-    return allSites.filter(s => s.province === province.value && s.district === district.value).length
-  if (province.value)
-    return allSites.filter(s => s.province === province.value).length
-  return allSites.length
-})
-
-function clearAll() {
-  province.value = ''
-  district.value = ''
-}
-</script>
-
-<style scoped>
-.filter-select {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text-1);
-  font-size: 13px;
-  cursor: pointer;
-  width: 100%;
-}
-.filter-select:disabled { opacity: 0.4; cursor: not-allowed; }
-</style>
