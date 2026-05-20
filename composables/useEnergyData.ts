@@ -1,45 +1,76 @@
+// composables/useEnergyData.ts
 import { ref, computed, type Ref } from 'vue'
+import { allTransformerRealtime }  from './useSiteData'
+import type { TransformerRealtime } from './useSiteData'
 
-export const useEnergyData = (activeMetric: Ref<string>, activePhases: Ref<string[]>, PHASES: any) => {
-  const allData = ref<any[]>([])
-  const isLoading = ref(false)
+export const useEnergyData = (
+  activeMetric:  Ref<string>,
+  activePhases:  Ref<string[]>,
+  PHASES:        any,
+) => {
+  const allData               = ref<any[]>([])
+  const isLoading             = ref(false)
+  const selectedTransformerId = ref<string | null>(null)
 
-  const unit = computed(() => {
-    const map: any = { current: 'A', voltage: 'V', power: 'kW' }
-    return map[activeMetric.value] || ''
+  const realtimeSnapshot = computed<TransformerRealtime | null>(() => {
+    if (!selectedTransformerId.value) return null
+    return allTransformerRealtime.find(
+      r => r.transformerId === selectedTransformerId.value
+    ) ?? null
   })
 
- const lastUpdateText = computed(() => {
-    if (allData.value.length === 0) return '--:--'
-    
-    const lastPoint = allData.value[allData.value.length - 1]
-    if (!lastPoint || !lastPoint.timestamp) return '--:--'
-    
-    // แสดงผลเฉพาะ HH:mm เพื่อให้เข้ากับรอบข้อมูล 10 นาที
-    return lastPoint.timestamp.toLocaleTimeString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
+  const unit = computed(() => {
+    const map: Record<string, string> = { current: 'A', voltage: 'V', power: 'kW' }
+    return map[activeMetric.value] ?? ''
+  })
+
+  const lastUpdateText = computed(() => {
+    if (!allData.value.length) return '--:--'
+    const last = allData.value.at(-1)
+    if (!last?.timestamp) return '--:--'
+    return (last.timestamp as Date).toLocaleTimeString('th-TH', {
+      hour: '2-digit', minute: '2-digit', hour12: false,
     })
   })
 
   const latest = computed(() => {
+    const snap = realtimeSnapshot.value
+    if (snap) {
+      return {
+        A: { current: snap.currentA, voltage: snap.voltageA, power: snap.activePowerImportA },
+        B: { current: snap.currentB, voltage: snap.voltageB, power: snap.activePowerImportB },
+        C: { current: snap.currentC, voltage: snap.voltageC, power: snap.activePowerImportC },
+      }
+    }
     const last = allData.value.at(-1)
-    if (!last) return { A: {current:0, voltage:0, power:0}, B: {current:0, voltage:0, power:0}, C: {current:0, voltage:0, power:0} }
+    if (!last) {
+      return {
+        A: { current: 0, voltage: 0, power: 0 },
+        B: { current: 0, voltage: 0, power: 0 },
+        C: { current: 0, voltage: 0, power: 0 },
+      }
+    }
     return PHASES.reduce((acc: any, p: any) => {
-      acc[p.id] = { current: last.current[p.id], voltage: last.voltage[p.id], power: last.power[p.id] }
+      acc[p.id] = {
+        current: last.current[p.id],
+        voltage: last.voltage[p.id],
+        power:   last.power[p.id],
+      }
       return acc
     }, {})
   })
 
   const statistics = computed(() => {
-    const key = activeMetric.value
-    const vals = allData.value.flatMap(d => activePhases.value.map(ph => d[key][ph]))
+    const key  = activeMetric.value
+    const vals = allData.value.flatMap(d =>
+      activePhases.value.map(ph => d[key]?.[ph] ?? 0)
+    )
     if (!vals.length) return []
+    const sum = vals.reduce((a, b) => a + b, 0)
     return [
-      { label: 'ค่าเฉลี่ยรวม (1,000 จุด)', value: `${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)} ${unit.value}` },
-      { label: 'สูงสุด (Peak)', value: `${Math.max(...vals).toFixed(1)} ${unit.value}`, color: 'var(--color-red)' },
-      { label: 'ต่ำสุด (Min)', value: `${Math.min(...vals).toFixed(1)} ${unit.value}`, color: 'var(--color-blue)' }
+      { label: 'ค่าเฉลี่ยรวม (1,000 จุด)', value: `${(sum / vals.length).toFixed(1)} ${unit.value}` },
+      { label: 'สูงสุด (Peak)',             value: `${Math.max(...vals).toFixed(1)} ${unit.value}`, color: 'var(--color-red)'  },
+      { label: 'ต่ำสุด (Min)',              value: `${Math.min(...vals).toFixed(1)} ${unit.value}`, color: 'var(--color-blue)' },
     ]
   })
 
@@ -47,11 +78,50 @@ export const useEnergyData = (activeMetric: Ref<string>, activePhases: Ref<strin
     const key = activeMetric.value
     if (!allData.value.length) return []
     const avgs = PHASES.map((p: any) => ({
-      ...p, avg: +(allData.value.reduce((s, b) => s + b[key][p.id], 0) / allData.value.length).toFixed(1)
+      ...p,
+      avg: +(
+        allData.value.reduce((s: number, d: any) => s + (d[key]?.[p.id] ?? 0), 0) /
+        allData.value.length
+      ).toFixed(1),
     }))
     const max = Math.max(...avgs.map((a: any) => a.avg))
     return avgs.map((a: any) => ({ ...a, pct: max > 0 ? (a.avg / max) * 100 : 0 }))
   })
 
-  return { allData, isLoading, latest, statistics, balanceData, unit, lastUpdateText }
+  function seedFromRealtime() {
+    const snap = realtimeSnapshot.value
+    if (!snap) return
+
+    const base = {
+      current: { A: snap.currentA,          B: snap.currentB,          C: snap.currentC          },
+      voltage: { A: snap.voltageA,           B: snap.voltageB,          C: snap.voltageC           },
+      power:   { A: snap.activePowerImportA, B: snap.activePowerImportB, C: snap.activePowerImportC },
+    }
+
+    const now = new Date()
+    now.setMinutes(Math.floor(now.getMinutes() / 10) * 10, 0, 0)
+
+    const jitter = (v: number, pct = 0.05) =>
+      +(v * (1 + (Math.random() - 0.5) * pct)).toFixed(1)
+
+    allData.value = Array.from({ length: 1000 }, (_, i) => {
+      const t = new Date(now.getTime() - (999 - i) * 10 * 60_000)
+      return {
+        label:     `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`,
+        timestamp: t,
+        current:   { A: jitter(base.current.A), B: jitter(base.current.B), C: jitter(base.current.C) },
+        voltage:   { A: jitter(base.voltage.A, 0.01), B: jitter(base.voltage.B, 0.01), C: jitter(base.voltage.C, 0.01) },
+        power:     { A: jitter(base.power.A),   B: jitter(base.power.B),   C: jitter(base.power.C)   },
+      }
+    })
+  }
+
+  return {
+    allData, isLoading,
+    selectedTransformerId,
+    realtimeSnapshot,
+    latest, statistics, balanceData,
+    unit, lastUpdateText,
+    seedFromRealtime,
+  }
 }
