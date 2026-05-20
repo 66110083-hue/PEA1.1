@@ -1,34 +1,207 @@
+<template>
+  <div class="td-page">
+
+    <div v-if="!tfInfo" class="td-card">
+      <div class="td-empty">
+        <i class="ti ti-alert-circle" style="font-size:24px;display:block;margin-bottom:8px"/>
+        ไม่พบข้อมูลหม้อแปลง
+      </div>
+    </div>
+
+    <template v-else>
+
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon" style="background:var(--color-green);color:white"><i class="ti ti-bolt"/></div>
+          <span class="td-card-title">Transformer Detail</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <span class="td-status-badge" :class="tfInfo.status">
+              <span class="td-dot" :class="tfInfo.status"/>
+              {{ tfInfo.status === 'online' ? 'Online' : 'Offline' }}
+            </span>
+            <span style="font-family:var(--font-mono);font-size:12px;color:var(--color-text-3)">{{ tfInfo.peaNo }}</span>
+          </div>
+        </div>
+        <div class="td-card-body">
+          <div class="td-hero">
+            <div class="td-img-box">🔌</div>
+            <div class="td-info-grid">
+              <div class="td-info-item"><span class="td-info-label">Device ID</span><span class="td-info-value" style="font-size:10px">{{ tfInfo.deviceId }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">PEA No.</span><span class="td-info-value">{{ tfInfo.peaNo }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Brand</span><span class="td-info-value">{{ tfInfo.brand }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Rated (kVA)</span><span class="td-info-value">{{ tfInfo.rated }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Rated CT</span><span class="td-info-value">{{ tfInfo.ratedCT }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Comm. Type</span><span class="td-info-value">{{ tfInfo.commType }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">IP Simcard</span><span class="td-info-value">{{ tfInfo.ipSim }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Latitude</span><span class="td-info-value">{{ tfInfo.lat }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Longitude</span><span class="td-info-value">{{ tfInfo.long }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Location</span><span class="td-info-value" style="font-family:var(--font-sans)">{{ tfInfo.location }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Install Date</span><span class="td-info-value">{{ tfInfo.installDate }}</span></div>
+              <div class="td-info-item"><span class="td-info-label">Max Load (%)</span><span class="td-info-value">{{ tfInfo.maxLoad }}</span></div>
+            </div>
+          </div>
+
+          <div class="td-section"><i class="ti ti-gauge"/> Current Values</div>
+          <div class="td-gauges-grid">
+            <div v-for="g in gauges" :key="g.label" class="td-gauge-item">
+              <svg width="100" height="72" viewBox="0 0 100 72">
+                <path :d="gaugeBgArc(100)" fill="none" stroke="var(--color-border)" stroke-width="5" stroke-linecap="round"/>
+                <path :d="gaugeArc(g.value, g.min, g.max, 100).path" fill="none"
+                  :stroke="gaugeColor(gaugeArc(g.value, g.min, g.max, 100).pct)"
+                  stroke-width="5" stroke-linecap="round"/>
+                <circle cx="50" cy="57.6" r="3" fill="var(--color-text-2)"/>
+              </svg>
+              <span class="td-gauge-value">{{ g.value.toFixed(2) }}</span>
+              <span class="td-gauge-label">{{ g.label }} ({{ g.unit }})</span>
+              <span v-if="g.sub" class="td-gauge-sub">↑ {{ g.sub }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon" style="background:#2563EB;color:white"><i class="ti ti-chart-line"/></div>
+          <span class="td-card-title">History Chart</span>
+          <div class="td-tabs" style="margin-left:12px">
+            <button
+              v-for="tab in METRIC_TABS" :key="tab.key"
+              class="td-tab" :class="{ active: activeMetric === tab.key }"
+              @click="activeMetric = tab.key"
+            >{{ tab.label }}</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button
+              v-for="p in PHASES" :key="p.id"
+              class="td-phase-btn"
+              :class="{ active: activePhases.includes(p.id) }"
+              :style="{ borderColor: p.color, color: p.color, background: activePhases.includes(p.id) ? p.color + '18' : 'transparent' }"
+              @click="activePhases.includes(p.id)
+                ? activePhases.splice(activePhases.indexOf(p.id), 1)
+                : activePhases.push(p.id)"
+            >{{ p.id }}</button>
+          </div>
+          <span style="margin-left:12px;font-size:11px;color:var(--color-text-3)">
+            <span class="td-live-dot"/>{{ lastUpdateText }}
+          </span>
+        </div>
+        <div class="td-card-body">
+
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button
+              class="td-tab"
+              :class="{ active: !hasData }"
+              @click="handleFilter({ range: '1d' }, targetDashboardId)"
+            ><i class="ti ti-refresh" style="font-size:11px"/> โหลดข้อมูล</button>
+          </div>
+
+          <div class="td-chart-wrap">
+            <canvas id="historyLineChart"/>
+            <div v-if="isLoading" class="td-loading-overlay">
+              <i class="ti ti-loader-2" style="animation:spin 1s linear infinite"/>
+              กำลังโหลด...
+            </div>
+            <div v-else-if="!hasData" class="td-loading-overlay" style="flex-direction:column;gap:4px">
+              <i class="ti ti-chart-line" style="font-size:24px;color:var(--color-border)"/>
+              <span>กดปุ่ม "โหลดข้อมูล" เพื่อดูกราฟ</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+            <div>
+              <div class="td-section"><i class="ti ti-chart-bar"/> Statistics</div>
+              <div v-for="s in statistics" :key="s.label" class="td-stat-row">
+                <span style="color:var(--color-text-2)">{{ s.label }}</span>
+                <span style="font-family:var(--font-mono);font-weight:600" :style="{ color: s.color ?? 'var(--color-text-1)' }">{{ s.value }}</span>
+              </div>
+            </div>
+            <div>
+              <div class="td-section"><i class="ti ti-scale"/> Phase Balance</div>
+              <div v-for="b in balanceData" :key="b.id" class="td-balance-row">
+                <span style="font-family:var(--font-mono);font-weight:600;width:20px" :style="{ color: b.color }">{{ b.id }}</span>
+                <div class="td-balance-bar-bg">
+                  <div class="td-balance-bar" :style="{ width: b.pct + '%', background: b.color }"/>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:11px;width:52px;text-align:right">{{ b.avg }} {{ unit }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon" style="background:#7C3AED;color:white"><i class="ti ti-table"/></div>
+          <span class="td-card-title">Realtime Data</span>
+          <span style="margin-left:8px;font-size:11px;color:var(--color-text-3)">
+            <span class="td-live-dot"/>ข้อมูล ณ ช่วงเวลานั้น
+          </span>
+        </div>
+        <div v-if="realtimeSnapshot" style="overflow-x:auto">
+          <table class="td-rt-table">
+            <thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead>
+            <tbody>
+              <tr v-for="row in realtimeRows" :key="row.label">
+                <td style="color:var(--color-text-2)">{{ row.label }}</td>
+                <td class="td-rt-val">{{ row.value !== undefined && row.value !== null ? row.value.toFixed(3) : '0.000' }}</td>
+                <td><span class="td-rt-unit">{{ row.unit }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="td-empty">ไม่มีข้อมูล realtime</div>
+      </div>
+
+    </template>
+  </div>
+</template>
+
 <script setup lang="ts">
-/**
- * TransformerDetail.vue
- * แสดงรายละเอียดหม้อแปลง พร้อมกราฟ + realtime data
- * โดยดึงข้อมูลผ่าน useDashboard (ซึ่งใช้ useEnergyData + useEnergyChart)
- */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useDashboard, METRIC_TABS }             from '~/composables/useDashboard'
-import { useTransformerData } from '../../composables/useSiteData'
-import type { Transformer }   from '../../composables/useSiteData'
+import { computed, watch } from 'vue'
+import { useDashboard } from '~/composables/useDashboard'
+import { useTransformer, type Transformer } from '~/composables/useTransformer'
 
 // ── Props ────────────────────────────────────────────────
 const props = defineProps<{
-  transformerId: string   // TF-M-01 เป็นต้น
+  transformerId: string   // รับค่าคีย์สลักเชื่อมเข้ามา (เช่น 'M-01', 'TF-M-01' หรือก้อน Object)
 }>()
 
 // ── Static info ──────────────────────────────────────────
-const { getTransformerById } = useTransformerData()
-const tfInfo = computed<Transformer | undefined>(
-  () => getTransformerById(props.transformerId)
-)
+const { transformers } = useTransformer()
+
+const tfInfo = computed<Transformer | undefined>(() => {
+  if (!props.transformerId) return undefined
+  
+  // 🔥 ระบบค้นหาแบบคลุมถุงชน: ล้างรหัส String ให้คลีนที่สุด ป้องกันปัญหาส่ง ID ผิดประเภท
+  const searchId = String(props.transformerId).toLowerCase().replace('tf-', '').trim()
+  
+  return transformers.value.find(t => {
+    if (!t.id) return false
+    const currentId = String(t.id).toLowerCase().trim()
+    const currentPea = String(t.peaNo).toLowerCase().trim()
+    
+    // ค้นหาเจอถ้ารหัสสั้นตรงกัน หรือซ้อนอยู่ในข้อความ หรือตรงกับรหัสหมายเลข PEA ของหม้อแปลง
+    return currentId === searchId || 
+           searchId.includes(currentId) || 
+           currentId.includes(searchId) ||
+           currentPea.includes(searchId)
+  })
+})
+
+// 🔥 ดึงรหัส ID ที่ถูกต้องเพื่อส่งไปให้ตัวจัดการกราฟ useDashboard
+const targetDashboardId = computed(() => {
+  return tfInfo.value ? tfInfo.value.id : props.transformerId
+})
 
 // ── Dashboard (chart + energy data) ─────────────────────
 const {
   activeMetric, activePhases, hasData, isLoading,
-  PHASES, METRIC_TABS: _tabs,
+  PHASES, METRIC_TABS,
   latest, statistics, balanceData,
   unit, lastUpdateText,
   realtimeSnapshot,
   handleFilter,
-} = useDashboard({ transformerId: props.transformerId })
+} = useDashboard({ transformerId: targetDashboardId.value })
 
 // ── Realtime table rows (จาก realtimeSnapshot) ──────────
 const realtimeRows = computed(() => {
@@ -92,7 +265,6 @@ function gaugeColor(pct: number) {
   return pct < 0.6 ? '#1D9E75' : pct < 0.85 ? '#F59E0B' : '#EF4444'
 }
 
-// Gauge ใช้ค่าจาก latest (ซึ่ง useDashboard จัดการให้แล้ว)
 const gauges = computed(() => {
   const l = latest.value
   return [
@@ -102,9 +274,9 @@ const gauges = computed(() => {
     { label: 'Current L1',     value: l.A?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
     { label: 'Current L2',     value: l.B?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
     { label: 'Current L3',     value: l.C?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Active P L1',    value: l.A?.power   ?? 0, min: 0,   max: 200, unit: 'kW',   sub: 'Import' },
-    { label: 'Active P L2',    value: l.B?.power   ?? 0, min: 0,   max: 200, unit: 'kW',   sub: 'Import' },
-    { label: 'Active P L3',    value: l.C?.power   ?? 0, min: 0,   max: 200, unit: 'kW',   sub: 'Import' },
+    { label: 'Active P L1',    value: l.A?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
+    { label: 'Active P L2',    value: l.B?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
+    { label: 'Active P L3',    value: l.C?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
   ]
 })
 </script>
@@ -179,7 +351,7 @@ const gauges = computed(() => {
 .td-rt-table { width:100%; border-collapse:collapse; font-size:12px; }
 .td-rt-table th { padding:7px 12px; text-align:left; background:var(--color-surface-2); color:var(--color-text-3); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--color-border); }
 .td-rt-table td { padding:7px 12px; border-bottom:1px solid var(--color-border); }
-.td-rt-table tr:last-child td { border-bottom:none; }
+.tr:last-child td { border-bottom:none; }
 .td-rt-table tr:hover td { background:var(--color-bg); }
 .td-rt-val  { font-family:var(--font-mono); font-weight:500; color:var(--color-text-1); }
 .td-rt-unit { font-size:10px; color:var(--color-text-3); margin-left:3px; }
@@ -190,172 +362,4 @@ const gauges = computed(() => {
 .td-section { font-size:11px; font-weight:600; color:var(--color-text-2); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
 .td-section::after { content:''; flex:1; height:1px; background:var(--color-border); }
 .td-empty { padding:40px; text-align:center; color:var(--color-text-3); font-size:13px; }
-</style>
-
-<template>
-  <div class="td-page">
-
-    <!-- no transformer -->
-    <div v-if="!tfInfo" class="td-card">
-      <div class="td-empty"><i class="ti ti-alert-circle" style="font-size:24px;display:block;margin-bottom:8px"/>ไม่พบข้อมูลหม้อแปลง</div>
-    </div>
-
-    <template v-else>
-
-      <!-- ── 1. Transformer Info Card ─────────────────── -->
-      <div class="td-card">
-        <div class="td-card-header">
-          <div class="td-card-icon" style="background:var(--color-green);color:white"><i class="ti ti-bolt"/></div>
-          <span class="td-card-title">Transformer Detail</span>
-          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
-            <span class="td-status-badge" :class="tfInfo.status">
-              <span class="td-dot" :class="tfInfo.status"/>
-              {{ tfInfo.status === 'online' ? 'Online' : 'Offline' }}
-            </span>
-            <span style="font-family:var(--font-mono);font-size:12px;color:var(--color-text-3)">{{ tfInfo.peaNo }}</span>
-          </div>
-        </div>
-        <div class="td-card-body">
-          <div class="td-hero">
-            <div class="td-img-box">🔌</div>
-            <div class="td-info-grid">
-              <div class="td-info-item"><span class="td-info-label">Device ID</span><span class="td-info-value" style="font-size:10px">{{ tfInfo.deviceId }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">PEA No.</span><span class="td-info-value">{{ tfInfo.peaNo }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Brand</span><span class="td-info-value">{{ tfInfo.brand }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Rated (kVA)</span><span class="td-info-value">{{ tfInfo.rated }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Rated CT</span><span class="td-info-value">{{ tfInfo.ratedCT }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Comm. Type</span><span class="td-info-value">{{ tfInfo.commType }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">IP Simcard</span><span class="td-info-value">{{ tfInfo.ipSim }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Latitude</span><span class="td-info-value">{{ tfInfo.lat }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Longitude</span><span class="td-info-value">{{ tfInfo.long }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Location</span><span class="td-info-value" style="font-family:var(--font-sans)">{{ tfInfo.location }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Install Date</span><span class="td-info-value">{{ tfInfo.installDate }}</span></div>
-              <div class="td-info-item"><span class="td-info-label">Max Load (%)</span><span class="td-info-value">{{ tfInfo.maxLoad }}</span></div>
-            </div>
-          </div>
-
-          <!-- Gauges -->
-          <div class="td-section"><i class="ti ti-gauge"/> Current Values</div>
-          <div class="td-gauges-grid">
-            <div v-for="g in gauges" :key="g.label" class="td-gauge-item">
-              <svg width="100" height="72" viewBox="0 0 100 72">
-                <path :d="gaugeBgArc(100)" fill="none" stroke="var(--color-border)" stroke-width="5" stroke-linecap="round"/>
-                <path :d="gaugeArc(g.value, g.min, g.max, 100).path" fill="none"
-                  :stroke="gaugeColor(gaugeArc(g.value, g.min, g.max, 100).pct)"
-                  stroke-width="5" stroke-linecap="round"/>
-                <circle cx="50" cy="57.6" r="3" fill="var(--color-text-2)"/>
-              </svg>
-              <span class="td-gauge-value">{{ g.value.toFixed(2) }}</span>
-              <span class="td-gauge-label">{{ g.label }} ({{ g.unit }})</span>
-              <span v-if="g.sub" class="td-gauge-sub">↑ {{ g.sub }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── 2. Chart Card ────────────────────────────── -->
-      <div class="td-card">
-        <div class="td-card-header">
-          <div class="td-card-icon" style="background:#2563EB;color:white"><i class="ti ti-chart-line"/></div>
-          <span class="td-card-title">History Chart</span>
-          <!-- Metric tabs -->
-          <div class="td-tabs" style="margin-left:12px">
-            <button
-              v-for="tab in METRIC_TABS" :key="tab.key"
-              class="td-tab" :class="{ active: activeMetric === tab.key }"
-              @click="activeMetric = tab.key"
-            >{{ tab.label }}</button>
-          </div>
-          <!-- Phase toggles -->
-          <div style="display:flex;gap:6px;margin-left:auto">
-            <button
-              v-for="p in PHASES" :key="p.id"
-              class="td-phase-btn"
-              :class="{ active: activePhases.includes(p.id) }"
-              :style="{ borderColor: p.color, color: p.color, background: activePhases.includes(p.id) ? p.color + '18' : 'transparent' }"
-              @click="activePhases.includes(p.id)
-                ? activePhases.splice(activePhases.indexOf(p.id), 1)
-                : activePhases.push(p.id)"
-            >{{ p.id }}</button>
-          </div>
-          <span style="margin-left:12px;font-size:11px;color:var(--color-text-3)">
-            <span class="td-live-dot"/>{{ lastUpdateText }}
-          </span>
-        </div>
-        <div class="td-card-body">
-
-          <!-- Filter bar -->
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button
-              class="td-tab"
-              :class="{ active: !hasData }"
-              @click="handleFilter({ range: '1d' }, props.transformerId)"
-            ><i class="ti ti-refresh" style="font-size:11px"/> โหลดข้อมูล</button>
-          </div>
-
-          <div class="td-chart-wrap">
-            <canvas id="historyLineChart"/>
-            <div v-if="isLoading" class="td-loading-overlay">
-              <i class="ti ti-loader-2" style="animation:spin 1s linear infinite"/>
-              กำลังโหลด...
-            </div>
-            <div v-else-if="!hasData" class="td-loading-overlay" style="flex-direction:column;gap:4px">
-              <i class="ti ti-chart-line" style="font-size:24px;color:var(--color-border)"/>
-              <span>กดปุ่ม "โหลดข้อมูล" เพื่อดูกราฟ</span>
-            </div>
-          </div>
-
-          <!-- Stats + Balance -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
-            <div>
-              <div class="td-section"><i class="ti ti-chart-bar"/> Statistics</div>
-              <div v-for="s in statistics" :key="s.label" class="td-stat-row">
-                <span style="color:var(--color-text-2)">{{ s.label }}</span>
-                <span style="font-family:var(--font-mono);font-weight:600" :style="{ color: s.color ?? 'var(--color-text-1)' }">{{ s.value }}</span>
-              </div>
-            </div>
-            <div>
-              <div class="td-section"><i class="ti ti-scale"/> Phase Balance</div>
-              <div v-for="b in balanceData" :key="b.id" class="td-balance-row">
-                <span style="font-family:var(--font-mono);font-weight:600;width:20px" :style="{ color: b.color }">{{ b.id }}</span>
-                <div class="td-balance-bar-bg">
-                  <div class="td-balance-bar" :style="{ width: b.pct + '%', background: b.color }"/>
-                </div>
-                <span style="font-family:var(--font-mono);font-size:11px;width:52px;text-align:right">{{ b.avg }} {{ unit }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── 3. Realtime Data Table ──────────────────── -->
-      <div class="td-card">
-        <div class="td-card-header">
-          <div class="td-card-icon" style="background:#7C3AED;color:white"><i class="ti ti-table"/></div>
-          <span class="td-card-title">Realtime Data</span>
-          <span style="margin-left:8px;font-size:11px;color:var(--color-text-3)">
-            <span class="td-live-dot"/>ข้อมูล ณ ช่วงเวลานั้น
-          </span>
-        </div>
-        <div v-if="realtimeSnapshot" style="overflow-x:auto">
-          <table class="td-rt-table">
-            <thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead>
-            <tbody>
-              <tr v-for="row in realtimeRows" :key="row.label">
-                <td style="color:var(--color-text-2)">{{ row.label }}</td>
-                <td class="td-rt-val">{{ row.value.toFixed(3) }}</td>
-                <td><span class="td-rt-unit">{{ row.unit }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="td-empty">ไม่มีข้อมูล realtime</div>
-      </div>
-
-    </template>
-  </div>
-</template>
-
-<style>
-@keyframes spin { to { transform: rotate(360deg); } }
 </style>
