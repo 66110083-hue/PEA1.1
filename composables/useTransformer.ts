@@ -1,12 +1,12 @@
 // useTransformer.ts
 // Logic ทั้งหมดแก้ไขมาดึงฐานข้อมูลและ ID ร่วมกับ useSiteData เรียบร้อยแล้ว
 import { ref, computed } from 'vue'
-// 🔥 นำเข้าข้อมูลโมเดลและรายการข้อมูลจาก useSiteData.ts
+// นำเข้าข้อมูลโมเดลและรายการข้อมูลจาก useSiteData.ts
 import { useSiteData, type Site } from '~/composables/useSiteData'
 
 // ─── Types ───────────────────────────────────────────────
 export interface Transformer {
-  id:           string // 🔥 เปลี่ยนจาก number เป็น string เพื่อใช้ id ของ Site (เช่น 'M-01')
+  id:           string // ใช้ id ของ Site (เช่น 'M-01') แทนตัวเลข
   status:       'online' | 'offline'
   deviceId:     string
   peaNo:        string
@@ -29,14 +29,14 @@ export type ModalMode = 'add' | 'edit' | 'view' | 'delete'
 
 // ─── Empty Form ──────────────────────────────────────────
 export const emptyForm = (): Transformer => ({
-  id: '', // 🔥 เพิ่มฟิลด์ id เข้ามาในฟอร์มเพื่อให้เลือกจับคู่กับ Site ID ตอนสร้าง
+  id: '', // เพิ่มฟิลด์ id เข้ามาในฟอร์มเพื่อให้เลือกจับคู่กับ Site ID ตอนสร้าง
   status: 'online', deviceId: '', peaNo: '', brand: '',
   commType: '', rated: 160, ratedCT: 250, ipSim: '',
   maxLoad: 80, maxFeedIn: 15, province: '', location: '',
   lat: 0, long: 0, installDate: '', imagePreview: '',
 })
 
-// 🔥 ดึงจังหวัดจาก useSiteData แทนการเขียนแยกเอง
+// ดึงจังหวัดจาก useSiteData แทนการเขียนแยกเอง
 const { provinces: SITE_PROVINCES, allSites } = useSiteData()
 export const PROVINCES = SITE_PROVINCES
 
@@ -45,17 +45,19 @@ export const COMM_TYPES = ['4G Cellular','WiFi','LoRa','Fiber']
 // ─── Composable ──────────────────────────────────────────
 export function useTransformer() {
 
-  // 🔥 จัดกลุ่มตัวแปรเริ่มต้น: แมปข้อมูลดึงโครงสร้างมาจาก allSites ของ useSiteData ตรงๆ
+  // 🔥 จัดกลุ่มตัวแปรเริ่มต้น: แมปข้อมูลดึงโครงสร้างมาจาก allSites และใช้ site.name เป็น brand
   const initialTransformers: Transformer[] = allSites.slice(0, 7).map((site, index) => {
-    const brands = ['VISTA TRAPE', 'แสงโสม', 'Thai-44499L', 'ABB', 'SMGLL', 'OTI', 'JM']
     const comms  = ['4G Cellular', '4G Cellular', 'LoRa', '4G Cellular', 'WiFi', '4G Cellular', 'Fiber']
     
     return {
-      id: site.id, // 🔥 ใช้ ID ร่วมกับ useSiteData ทันที (M-01, M-02, ...)
+      id: site.id,         // ใช้ ID ร่วมกับ useSiteData ทันที (M-01, M-02, ...)
       status: site.status === 'offline' ? 'offline' : 'online',
       deviceId: `4A5G0PV1Y23E0${index + 1}B09N`,
       peaNo: `${site.id}-TR#0${index + 1}`,
-      brand: brands[index % brands.length],
+      
+      // 🔥 แก้ไขจุดนี้ตามต้องการ: ดึงชื่อ site.name มาเทียบใส่ตรงกับ id ของ sitedata.ts เลย
+      brand: site.name, 
+      
       rated: index === 3 ? 315 : index === 4 ? 250 : index === 6 ? 400 : 160,
       ratedCT: index === 3 ? 400 : index === 4 ? 300 : index === 6 ? 500 : 250,
       commType: comms[index % comms.length],
@@ -65,7 +67,7 @@ export function useTransformer() {
       province: site.province,
       location: site.name,
       lat: site.lat,
-      long: site.lng, // ลิงก์จับคู่กับพิกัดจริงบนแผนที่
+      long: site.lng,      // พิกัดลองจิจูดจาก siteData
       installDate: `2025-01-${10 + index}`,
       imagePreview: ''
     }
@@ -86,7 +88,7 @@ export function useTransformer() {
       d = d.filter(r =>
         r.peaNo.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
         r.deviceId.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        r.id.toLowerCase().includes(searchQuery.value.toLowerCase()) // 🔥 ค้นหาด้วยรหัสหม้อแปลง/ไซต์ได้ด้วย
+        r.id.toLowerCase().includes(searchQuery.value.toLowerCase()) // ค้นหาด้วยรหัสหม้อแปลง/ไซต์ได้
       )
     if (statusFilter.value)
       d = d.filter(r => r.status === statusFilter.value)
@@ -101,7 +103,7 @@ export function useTransformer() {
   const showModal = ref(false)
   const modalMode = ref<ModalMode>('add')
   const formError = ref('')
-  const editingId = ref<string | null>(null) // 🔥 เปลี่ยนโครงสร้างเป็น string | null
+  const editingId = ref<string | null>(null) // เปลี่ยนโครงสร้างเป็น string | null ตาม id แบบใหม่
   const form      = ref(emptyForm())
 
   function openAdd() {
