@@ -148,6 +148,9 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 22px;
+  overflow: visible;   /* เพิ่ม */
+  z-index: 100;        /* เพิ่ม */
+  position: relative;  /* เพิ่ม */
 }
 
 .topbar-search {

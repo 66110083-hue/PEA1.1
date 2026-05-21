@@ -1,91 +1,115 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  defineAsyncComponent,
+} from 'vue'
+import { allAlerts } from '@/composables/useSiteData'
 
-const isLoggedIn  = ref(false)
+// =========================
+// State & Authentication
+// =========================
+const isLoggedIn = ref(false)
 const currentPage = ref('login')
-const showMenu    = ref(false)
+const showNotification = ref(false)
+const showProfileMenu = ref(false)  // เพิ่ม
+const clock = ref('')
+let clockTimer: ReturnType<typeof setInterval> | null = null
 
+// =========================
+// Computed Properties
+// =========================
+const abnormalAlerts = computed(() =>
+  allAlerts.filter(a => a.level === 'alert' || a.level === 'warning')
+)
+
+const hasNotification = computed(() => abnormalAlerts.value.length > 0)
+
+const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overview)
+
+// =========================
+// Navigation Menu Data
+// =========================
 const navMain = [
-  { to: 'overview',    label: 'ภาพรวม',         icon: 'ti-layout-dashboard' },
-  { to: 'transformer', label: 'จัดการหม้อแปลง',  icon: 'ti-bolt'             },
-  { to: 'alerts',      label: 'การแจ้งเตือน',     icon: 'ti-bell-ringing'     },
+  { to: 'overview', label: 'ภาพรวม', icon: 'ti-layout-dashboard' },
+  { to: 'transformer', label: 'จัดการหม้อแปลง', icon: 'ti-bolt' },
+  { to: 'alerts', label: 'การแจ้งเตือน', icon: 'ti-bell-ringing' },
 ]
 
 const navAnalysis = [
-  { to: 'history',   label: 'ข้อมูลย้อนหลัง', icon: 'ti-history'    },
-  { to: 'breakeven', label: 'จุดคุ้มทุน',      icon: 'ti-calculator' },
+  { to: 'history', label: 'ข้อมูลย้อนหลัง', icon: 'ti-history' },
+  { to: 'breakeven', label: 'จุดคุ้มทุน', icon: 'ti-calculator' },
 ]
 
 const navSystem = [
   { to: 'settings', label: 'ตั้งค่าระบบ', icon: 'ti-settings' },
 ]
 
+// =========================
+// Lazy-Loaded Pages Mapping
+// =========================
 const pageMap: Record<string, any> = {
-  login:       defineAsyncComponent(() => import('~/Pages/PageLogin.vue')),
-  overview:    defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
-  alerts:      defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
-  history:     defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
-  breakeven:   defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
-  settings:    defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
+  login: defineAsyncComponent(() => import('~/Pages/PageLogin.vue')),
+  overview: defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
+  alerts: defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
+  history: defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
+  breakeven: defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
+  settings: defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
   transformer: defineAsyncComponent(() => import('~/Pages/PageTransformerManagement.vue')),
 }
 
-const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overview)
-
+// =========================
+// Functions & Actions
+// =========================
 const handleLoginSuccess = () => {
   localStorage.setItem('isLoggedIn', 'true')
-  isLoggedIn.value  = true
+  isLoggedIn.value = true
   currentPage.value = 'overview'
 }
 
 const handleLogout = () => {
   localStorage.removeItem('isLoggedIn')
-  isLoggedIn.value  = false
+  isLoggedIn.value = false
   currentPage.value = 'login'
-  showMenu.value    = false
+  showProfileMenu.value = false  // ปิด dropdown ด้วย
 }
-
-const clock = ref('')
-let clockTimer: any
 
 function updateClock() {
   clock.value = new Date().toLocaleTimeString('th-TH', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   })
 }
 
-function handleOutsideClick(e: MouseEvent) {
-  const wrap = document.querySelector('.avatar-wrap')
-  if (wrap && !wrap.contains(e.target as Node)) {
-    showMenu.value = false
-  }
-}
-
+// =========================
+// Lifecycle Hooks
+// =========================
 onMounted(() => {
   updateClock()
   clockTimer = setInterval(updateClock, 1000)
 
-  const saved = localStorage.getItem('isLoggedIn')
-  if (saved === 'true') {
-    isLoggedIn.value  = true
+  const savedLoginStatus = localStorage.getItem('isLoggedIn')
+  if (savedLoginStatus === 'true') {
+    isLoggedIn.value = true
     currentPage.value = 'overview'
+  } else {
+    isLoggedIn.value = false
+    currentPage.value = 'login'
   }
-
-  document.addEventListener('click', handleOutsideClick)
 })
 
 onBeforeUnmount(() => {
-  clearInterval(clockTimer)
-  document.removeEventListener('click', handleOutsideClick)
+  if (clockTimer) clearInterval(clockTimer)
 })
 </script>
 
 <template>
-
-  <!-- ─── Layout หลัก (หลัง Login) ─── -->
   <div v-if="isLoggedIn" class="layout">
-
-    <!-- Sidebar -->
+    
+    <!-- Sidebar Left Navigation -->
     <aside class="sidebar">
       <div class="sidebar-logo">
         <div class="sidebar-logo-icon">
@@ -99,123 +123,302 @@ onBeforeUnmount(() => {
 
       <div class="sidebar-section-label">หน้าหลัก</div>
       <button
-        v-for="item in navMain" :key="item.to"
+        v-for="item in navMain"
+        :key="item.to"
         class="nav-link"
         :class="{ active: currentPage === item.to }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" aria-hidden="true" />
+        <i :class="`ti ${item.icon}`" />
         {{ item.label }}
       </button>
 
       <div class="sidebar-section-label">การวิเคราะห์</div>
       <button
-        v-for="item in navAnalysis" :key="item.to"
+        v-for="item in navAnalysis"
+        :key="item.to"
         class="nav-link"
         :class="{ active: currentPage === item.to }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" aria-hidden="true" />
+        <i :class="`ti ${item.icon}`" />
         {{ item.label }}
       </button>
 
       <div class="sidebar-section-label">ระบบ</div>
       <button
-        v-for="item in navSystem" :key="item.to"
+        v-for="item in navSystem"
+        :key="item.to"
         class="nav-link"
         :class="{ active: currentPage === item.to }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" aria-hidden="true" />
+        <i :class="`ti ${item.icon}`" />
         {{ item.label }}
       </button>
 
-      <!-- ─── Logout ซ้ายล่าง ─── -->
-      <div class="sidebar-logout-wrap">
-        <button class="nav-link sidebar-logout-btn" @click="handleLogout">
-          <i class="ti ti-logout" aria-hidden="true" />
-          ออกจากระบบ
-        </button>
-      </div>
+      <button
+        class="nav-link"
+        style="margin-top: auto; color: var(--color-red-text);"
+        @click="handleLogout"
+      >
+        <i class="ti ti-logout" />
+        ออกจากระบบ
+      </button>
     </aside>
 
     <!-- Topbar -->
     <header class="topbar">
-      <div></div>
+      <div />
       <div class="topbar-right">
         <div class="status-badge">
           <span class="status-dot" />
           Online 26/30
         </div>
-        <div class="clock-display">{{ clock }}</div>
-        <i
-          class="ti ti-bell"
-          style="font-size:18px;color:var(--color-text-2);cursor:pointer"
-          aria-hidden="true"
-        />
 
-        <!-- ─── Avatar + Dropdown ─── -->
-        <div class="avatar-wrap" @click.stop="showMenu = !showMenu">
-          <div class="avatar-btn">A</div>
-
-          <Transition name="dropdown">
-            <div v-if="showMenu" class="avatar-menu">
-              <div class="avatar-menu-name">Admin</div>
-              <div class="avatar-menu-email">admin@pea.co.th</div>
-              <hr class="avatar-menu-divider" />
-              <button class="avatar-menu-item logout" @click.stop="handleLogout">
-                <i class="ti ti-logout" />
-                ออกจากระบบ
-              </button>
-            </div>
-          </Transition>
+        <div class="clock-display">
+          {{ clock }}
         </div>
+
+        <!-- Notification -->
+        <div class="notification-wrapper">
+          <div class="notification-btn" @click="showNotification = !showNotification; showProfileMenu = false">
+            <i class="ti ti-bell notification-icon" />
+            <span v-if="hasNotification" class="notification-dot" />
+          </div>
+
+          <div v-if="showNotification" class="notification-dropdown">
+            <div class="notification-header">แจ้งเตือนระบบ</div>
+            
+            <div v-if="abnormalAlerts.length === 0" class="notification-empty">
+              ไม่มีแจ้งเตือน
+            </div>
+
+            <div
+              v-for="item in abnormalAlerts"
+              :key="item.id"
+              class="notification-item"
+            >
+              <div class="notification-level" :class="item.level" />
+              <div class="notification-content">
+                <div class="notification-title">{{ item.title }}</div>
+                <div class="notification-sub">{{ item.sub }}</div>
+              </div>
+            </div>
+
+            <button
+              class="view-all-btn"
+              @click="currentPage = 'alerts'; showNotification = false;"
+            >
+              ดูทั้งหมด
+            </button>
+          </div>
+        </div>
+
+        <!-- Profile Avatar + Dropdown -->
+        <div class="profile-wrapper">
+          <div
+            class="profile-avatar"
+            @click="showProfileMenu = !showProfileMenu; showNotification = false"
+          >
+            A
+          </div>
+
+          <div v-if="showProfileMenu" class="profile-dropdown">
+            <div class="profile-dropdown-info">
+              <div class="profile-dropdown-avatar">A</div>
+              <div>
+                <div class="profile-dropdown-name">Admin</div>
+                <div class="profile-dropdown-role">ผู้ดูแลระบบ</div>
+              </div>
+            </div>
+
+            <div class="profile-dropdown-divider" />
+
+            <button
+              class="profile-dropdown-item"
+              @click="currentPage = 'settings'; showProfileMenu = false"
+            >
+              <i class="ti ti-settings" />
+              ตั้งค่าระบบ
+            </button>
+
+            <div class="profile-dropdown-divider" />
+
+            <button
+              class="profile-dropdown-item danger"
+              @click="handleLogout"
+            >
+              <i class="ti ti-logout" />
+              ออกจากระบบ
+            </button>
+          </div>
+        </div>
+
       </div>
     </header>
 
-    <!-- Main -->
+    <!-- Main Content -->
     <main class="main-content">
       <Transition name="page" mode="out-in">
-        <component :is="pageComponent" :key="currentPage" />
+        <component
+          :is="pageComponent"
+          :key="currentPage"
+          @login-success="handleLoginSuccess"
+        />
       </Transition>
     </main>
-
   </div>
 
-  <!-- ─── Login page ─── -->
+  <!-- Login Layout -->
   <div v-else class="login-layout">
     <Transition name="page" mode="out-in">
       <component :is="pageComponent" @login-success="handleLoginSuccess" />
     </Transition>
   </div>
-
 </template>
 
 <style scoped>
-/* ─── Sidebar logout ─── */
-.sidebar-logout-wrap {
-  margin-top: auto;
-  padding: 10px 0;
-  border-top: 1px solid var(--color-border);
+.login-layout {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f6f9;
 }
 
-.sidebar-logout-btn {
-  color: var(--color-red-text) !important;
-  width: 100%;
-}
-
-.sidebar-logout-btn:hover {
-  background: var(--color-red-bg) !important;
-}
-
-/* ─── Avatar ─── */
-.avatar-wrap {
+/* =========================
+   Notification Panel
+========================= */
+.notification-wrapper {
   position: relative;
-  cursor: pointer;
-  user-select: none;
 }
 
-.avatar-btn {
+.notification-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .2s ease;
+}
+
+.notification-btn:hover {
+  background: #f3f4f6;
+}
+
+.notification-icon {
+  font-size: 20px;
+  color: #4b5563;
+}
+
+.notification-dot {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid white;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  width: 320px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  z-index: 999;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+.notification-header {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #111827;
+}
+
+.notification-empty {
+  text-align: center;
+  padding: 20px 0;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.notification-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  transition: background .2s ease;
+}
+
+.notification-item:hover {
+  background: #f9fafb;
+}
+
+.notification-level {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.notification-level.alert {
+  background: #ef4444;
+}
+
+.notification-level.warning {
+  background: #f59e0b;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.notification-sub {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.view-all-btn {
+  width: 100%;
+  height: 38px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* =========================
+   Profile Avatar + Dropdown
+========================= */
+.profile-wrapper {
+  position: relative;
+}
+
+.profile-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -226,78 +429,91 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-green-text);
-  transition: opacity 0.12s;
+  cursor: pointer;
+  transition: opacity .2s ease;
 }
 
-.avatar-btn:hover { opacity: 0.85; }
+.profile-avatar:hover {
+  opacity: 0.8;
+}
 
-/* ─── Dropdown menu ─── */
-.avatar-menu {
+.profile-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: 42px;
   right: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 8px;
-  min-width: 190px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.13);
-  z-index: 200;
+  width: 220px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  z-index: 999;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
 }
 
-.avatar-menu-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-1);
-  padding: 4px 8px 2px;
-}
-
-.avatar-menu-email {
-  font-size: 11px;
-  color: var(--color-text-3);
-  padding: 0 8px 4px;
-}
-
-.avatar-menu-divider {
-  border: none;
-  border-top: 1px solid var(--color-border);
-  margin: 6px 0;
-}
-
-.avatar-menu-item {
+.profile-dropdown-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-family: var(--font-sans);
-  cursor: pointer;
-  color: var(--color-text-2);
-  transition: background 0.12s;
-  text-align: left;
+  gap: 10px;
+  padding: 6px 4px 10px;
 }
 
-.avatar-menu-item:hover { background: var(--color-bg); }
-.avatar-menu-item.logout { color: var(--color-red); }
-.avatar-menu-item.logout:hover { background: var(--color-red-bg); }
-
-/* ─── Dropdown animation ─── */
-.dropdown-enter-active,
-.dropdown-leave-active { transition: opacity 0.15s, transform 0.15s; }
-.dropdown-enter-from   { opacity: 0; transform: translateY(-6px); }
-.dropdown-leave-to     { opacity: 0; transform: translateY(-6px); }
-
-/* ─── Login layout ─── */
-.login-layout {
-  width: 100vw;
-  height: 100vh;
+.profile-dropdown-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-green-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f4f6f9;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-green-text);
+  flex-shrink: 0;
+}
+
+.profile-dropdown-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.profile-dropdown-role {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+.profile-dropdown-divider {
+  height: 1px;
+  background: #f3f4f6;
+  margin: 4px 0;
+}
+
+.profile-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  transition: background .15s ease;
+  text-align: left;
+}
+
+.profile-dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+.profile-dropdown-item.danger {
+  color: #ef4444;
+}
+
+.profile-dropdown-item.danger:hover {
+  background: #fef2f2;
 }
 </style>
