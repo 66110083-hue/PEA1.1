@@ -1,185 +1,685 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  defineAsyncComponent,
+} from 'vue'
 
-// 1. เพิ่มตัวแปรสำหรับเช็คสถานะการเข้าสู่ระบบ
+import { allAlerts } from '@/composables/useSiteData'
+
+// =========================
+// Login
+// =========================
+
 const isLoggedIn = ref(false)
 
-// 2. ปรับค่าเริ่มต้นของ currentPage (ถ้าล็อกอินแล้วไป overview, ถ้ายังให้ไป login)
 const currentPage = ref('login')
 
+// =========================
+// Notification
+// =========================
+
+const showNotification = ref(false)
+
+// แจ้งเตือนผิดปกติ
+const abnormalAlerts = computed(() =>
+  allAlerts.filter(
+    a =>
+      a.level === 'alert' ||
+      a.level === 'warning'
+  )
+)
+
+// มีแจ้งเตือนหรือไม่
+const hasNotification = computed(() =>
+  abnormalAlerts.value.length > 0
+)
+
+// =========================
+// Navigation
+// =========================
+
 const navMain = [
-  { to: 'overview',    label: 'ภาพรวม',        icon: 'ti-layout-dashboard' },
-  { to: 'transformer', label: 'จัดการหม้อแปลง',  icon: 'ti-bolt'             },
-  { to: 'alerts',      label: 'การแจ้งเตือน',     icon: 'ti-bell-ringing'     },
+  {
+    to: 'overview',
+    label: 'ภาพรวม',
+    icon: 'ti-layout-dashboard',
+  },
+
+  {
+    to: 'transformer',
+    label: 'จัดการหม้อแปลง',
+    icon: 'ti-bolt',
+  },
+
+  {
+    to: 'alerts',
+    label: 'การแจ้งเตือน',
+    icon: 'ti-bell-ringing',
+  },
 ]
 
 const navAnalysis = [
-  { to: 'history',  label: 'ข้อมูลย้อนหลัง', icon: 'ti-history' },
-  { to: 'breakeven',label: 'จุดคุ้มทุน', icon: 'ti-calculator' },
+  {
+    to: 'history',
+    label: 'ข้อมูลย้อนหลัง',
+    icon: 'ti-history',
+  },
+
+  {
+    to: 'breakeven',
+    label: 'จุดคุ้มทุน',
+    icon: 'ti-calculator',
+  },
 ]
 
 const navSystem = [
-  { to: 'settings', label: 'ตั้งค่าระบบ', icon: 'ti-settings' },
+  {
+    to: 'settings',
+    label: 'ตั้งค่าระบบ',
+    icon: 'ti-settings',
+  },
 ]
 
+// =========================
+// Pages
+// =========================
+
 const pageMap: Record<string, any> = {
-  // 3. เพิ่ม Component หน้า Login เข้าไปใน Map (สร้างไฟล์ PageLogin.vue ไว้ที่โฟลเดอร์ Pages ด้วยนะครับ)
-  login:     defineAsyncComponent(() => import('~/Pages/PageLogin.vue')),
-  overview:  defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
-  alerts:    defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
-  history:   defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
-  breakeven: defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
-  settings:  defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
-  transformer: defineAsyncComponent(() => import('~/Pages/PageTransformerManagement.vue')),
+  login: defineAsyncComponent(() =>
+    import('~/Pages/PageLogin.vue')
+  ),
+
+  overview: defineAsyncComponent(() =>
+    import('~/Pages/PageOverview.vue')
+  ),
+
+  alerts: defineAsyncComponent(() =>
+    import('~/Pages/PageAlerts.vue')
+  ),
+
+  history: defineAsyncComponent(() =>
+    import('~/Pages/PageHistory.vue')
+  ),
+
+  breakeven: defineAsyncComponent(() =>
+    import('~/Pages/PageBreakeven.vue')
+  ),
+
+  settings: defineAsyncComponent(() =>
+    import('~/Pages/PageSettings.vue')
+  ),
+
+  transformer: defineAsyncComponent(() =>
+    import('~/Pages/PageTransformerManagement.vue')
+  ),
 }
 
-const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overview)
+const pageComponent = computed(
+  () =>
+    pageMap[currentPage.value] ??
+    pageMap.overview
+)
 
-// 4. ฟังก์ชันจัดการเมื่อเข้าสู่ระบบสำเร็จ (ส่งต่อให้หน้า Login เรียกใช้)
+// =========================
+// Login Function
+// =========================
+
 const handleLoginSuccess = () => {
-  localStorage.setItem('isLoggedIn', 'true')
+  localStorage.setItem(
+    'isLoggedIn',
+    'true'
+  )
+
   isLoggedIn.value = true
-  currentPage.value = 'overview' // ล็อกอินผ่านแล้ว วาร์ปมาหน้าแรกทันที
+
+  currentPage.value = 'overview'
 }
 
-// 5. ฟังก์ชันสำหรับออกจากระบบ (Log out)
 const handleLogout = () => {
   localStorage.removeItem('isLoggedIn')
+
   isLoggedIn.value = false
+
   currentPage.value = 'login'
 }
 
+// =========================
 // Clock
+// =========================
+
 const clock = ref('')
+
 let clockTimer: any
+
 function updateClock() {
-  clock.value = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  clock.value =
+    new Date().toLocaleTimeString(
+      'th-TH',
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }
+    )
 }
 
-onMounted(() => { 
-  updateClock(); 
-  clockTimer = setInterval(updateClock, 1000)
-  
-  // 6. ตอนเปิดเว็บมา ให้เช็คเครื่อง User ทันทีว่าเคยล็อกอินค้างไว้ไหม (ข้อมูลไม่หาย)
-  const savedLoginStatus = localStorage.getItem('isLoggedIn')
+onMounted(() => {
+  updateClock()
+
+  clockTimer = setInterval(
+    updateClock,
+    1000
+  )
+
+  const savedLoginStatus =
+    localStorage.getItem('isLoggedIn')
+
   if (savedLoginStatus === 'true') {
     isLoggedIn.value = true
+
     currentPage.value = 'overview'
   } else {
     isLoggedIn.value = false
+
     currentPage.value = 'login'
   }
 })
 
-onBeforeUnmount(() => clearInterval(clockTimer))
-
+onBeforeUnmount(() =>
+  clearInterval(clockTimer)
+)
 </script>
 
 <template>
-  <!-- 
-    7. ใช้ v-if แบ่งหน้าจอ: 
-    - ถ้าล็อกอินแล้ว (isLoggedIn === true) ให้แสดง Layout ที่มี Sidebar + Topbar ครบชุด 
-  -->
-  <div v-if="isLoggedIn" class="layout">
+  <div
+    v-if="isLoggedIn"
+    class="layout"
+  >
+
     <!-- Sidebar -->
     <aside class="sidebar">
+
       <div class="sidebar-logo">
+
         <div class="sidebar-logo-icon">
-          <img src="/logo.png" alt="logo" />
+          <img
+            src="/logo.png"
+            alt="logo"
+          />
         </div>
+
         <div>
-          <div class="sidebar-logo-text">PEA</div>
-          <div class="sidebar-logo-sub">Energy Monitor 3φ</div>
+          <div class="sidebar-logo-text">
+            PEA
+          </div>
+
+          <div class="sidebar-logo-sub">
+            Energy Monitor 3φ
+          </div>
         </div>
+
       </div>
 
-      <div class="sidebar-section-label">หน้าหลัก</div>
+      <!-- Main -->
+      <div class="sidebar-section-label">
+        หน้าหลัก
+      </div>
+
       <button
         v-for="item in navMain"
         :key="item.to"
         class="nav-link"
-        :class="{ active: currentPage === item.to }"
+        :class="{
+          active:
+            currentPage === item.to
+        }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" aria-hidden="true" />
+        <i
+          :class="`ti ${item.icon}`"
+        />
+
         {{ item.label }}
       </button>
 
-      <div class="sidebar-section-label">การวิเคราะห์</div>
+      <!-- Analysis -->
+      <div class="sidebar-section-label">
+        การวิเคราะห์
+      </div>
+
       <button
         v-for="item in navAnalysis"
         :key="item.to"
         class="nav-link"
-        :class="{ active: currentPage === item.to }"
+        :class="{
+          active:
+            currentPage === item.to
+        }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" aria-hidden="true" />
+        <i
+          :class="`ti ${item.icon}`"
+        />
+
         {{ item.label }}
       </button>
 
-      <div class="sidebar-section-label">ระบบ</div>
+      <!-- System -->
+      <div class="sidebar-section-label">
+        ระบบ
+      </div>
+
       <button
         v-for="item in navSystem"
         :key="item.to"
         class="nav-link"
-        :class="{ active: currentPage === item.to }"
+        :class="{
+          active:
+            currentPage === item.to
+        }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" aria-hidden="true" />
+        <i
+          :class="`ti ${item.icon}`"
+        />
+
         {{ item.label }}
       </button>
-      
-      <!-- ปุ่ม Logout เผื่ออยากใช้งาน -->
-      <button class="nav-link" style="margin-top: auto; color: var(--color-red-text);" @click="handleLogout">
-        <i class="ti ti-logout" /> ออกจากระบบ
+
+      <!-- Logout -->
+      <button
+        class="nav-link"
+        style="
+          margin-top:auto;
+          color:var(--color-red-text)
+        "
+        @click="handleLogout"
+      >
+        <i class="ti ti-logout" />
+        ออกจากระบบ
       </button>
+
     </aside>
 
     <!-- Topbar -->
     <header class="topbar">
-      <div class="">
-        <i class="" />
-      </div>
+
+      <div />
+
       <div class="topbar-right">
+
+        <!-- Status -->
         <div class="status-badge">
           <span class="status-dot" />
           Online 26/30
         </div>
-        <div class="clock-display">{{ clock }}</div>
-        <i class="ti ti-bell" style="font-size:18px;color:var(--color-text-2);cursor:pointer" aria-hidden="true" />
-        <div
-          style="width:32px;height:32px;border-radius:50%;background:var(--color-green-bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--color-green-text);cursor:pointer"
-        >A</div>
+
+        <!-- Clock -->
+        <div class="clock-display">
+          {{ clock }}
+        </div>
+
+        <!-- Notification -->
+        <div class="notification-wrapper">
+
+          <!-- Bell -->
+          <div
+            class="notification-btn"
+            @click="
+              showNotification =
+                !showNotification
+            "
+          >
+            <i
+              class="ti ti-bell notification-icon"
+            />
+
+            <!-- Red Dot -->
+            <span
+              v-if="hasNotification"
+              class="notification-dot"
+            />
+          </div>
+
+          <!-- Dropdown -->
+          <div
+            v-if="showNotification"
+            class="notification-dropdown"
+          >
+
+            <div
+              class="notification-header"
+            >
+              แจ้งเตือนระบบ
+            </div>
+
+            <!-- Empty -->
+            <div
+              v-if="
+                abnormalAlerts.length === 0
+              "
+              class="notification-empty"
+            >
+              ไม่มีแจ้งเตือน
+            </div>
+
+            <!-- Alert List -->
+            <div
+              v-for="item in abnormalAlerts"
+              :key="item.id"
+              class="notification-item"
+            >
+
+              <div
+                class="notification-level"
+                :class="item.level"
+              />
+
+              <div
+                class="notification-content"
+              >
+
+                <div
+                  class="notification-title"
+                >
+                  {{ item.title }}
+                </div>
+
+                <div
+                  class="notification-sub"
+                >
+                  {{ item.sub }}
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- View All -->
+            <button
+              class="view-all-btn"
+              @click="
+                currentPage = 'alerts'
+                showNotification = false;
+              "
+            >
+              ดูทั้งหมด
+            </button>
+
+          </div>
+
+        </div>
+
+        <!-- Avatar -->
+        <div class="profile-avatar">
+          A
+        </div>
+
       </div>
+
     </header>
 
-    <!-- Main content -->
+    <!-- Main -->
     <main class="main-content">
-      <Transition name="page" mode="out-in">
-        <component :is="pageComponent" :key="currentPage" />
+      <Transition
+        name="page"
+        mode="out-in"
+      >
+        <component
+          :is="pageComponent"
+          :key="currentPage"
+          @login-success="
+            handleLoginSuccess
+          "
+        />
       </Transition>
     </main>
+
   </div>
 
-  <!-- 
-    8. ถ้ายังไม่ได้ล็อกอิน (isLoggedIn === false) ให้แสดงเฉพาะตัว Component หน้า Login โดดๆ 
-    โดยส่งฟังก์ชัน handleLoginSuccess ไปให้หน้าลูกเรียกใช้ด้วยผ่าน emit หรือ props
-  -->
-  <div v-else class="login-layout">
-    <Transition name="page" mode="out-in">
-      <component :is="pageComponent" @login-success="handleLoginSuccess" />
+  <!-- Login -->
+  <div
+    v-else
+    class="login-layout"
+  >
+    <Transition
+      name="page"
+      mode="out-in"
+    >
+      <component
+        :is="pageComponent"
+        @login-success="
+          handleLoginSuccess
+        "
+      />
     </Transition>
   </div>
 </template>
 
 <style scoped>
-/* สไตล์เพิ่มเติมสำหรับหน้า Login เต็มจอ (คุณสามารถนำไปปรับแต่งตามดีไซน์ของ PEA ได้เลยครับ) */
+
+/* Login */
+
 .login-layout {
   width: 100vw;
+
   height: 100vh;
+
   display: flex;
+
   align-items: center;
+
   justify-content: center;
-  background: #f4f6f9; /* หรือสีพื้นหลังที่ต้องการ */
+
+  background: #f4f6f9;
 }
+
+/* =========================
+   Notification
+========================= */
+
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-btn {
+  position: relative;
+
+  width: 36px;
+  height: 36px;
+
+  border-radius: 10px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  cursor: pointer;
+
+  transition: background .2s ease;
+}
+
+.notification-btn:hover {
+  background: #f3f4f6;
+}
+
+.notification-icon {
+  font-size: 20px;
+
+  color: #4b5563;
+}
+
+/* Red Dot */
+
+.notification-dot {
+  position: absolute;
+
+  top: 7px;
+  right: 8px;
+
+  width: 10px;
+  height: 10px;
+
+  border-radius: 50%;
+
+  background: #ef4444;
+
+  border: 2px solid white;
+}
+
+/* Dropdown */
+
+.notification-dropdown {
+  position: absolute;
+
+  top: 46px;
+  right: 0;
+
+  width: 320px;
+
+  background: white;
+
+  border-radius: 16px;
+
+  border: 1px solid #e5e7eb;
+
+  padding: 12px;
+
+  z-index: 999;
+
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.08);
+}
+
+.notification-header {
+  font-size: 15px;
+
+  font-weight: 600;
+
+  margin-bottom: 10px;
+
+  color: #111827;
+}
+
+.notification-empty {
+  text-align: center;
+
+  padding: 20px 0;
+
+  color: #9ca3af;
+
+  font-size: 13px;
+}
+
+.notification-item {
+  display: flex;
+
+  gap: 10px;
+
+  padding: 10px 6px;
+
+  border-radius: 10px;
+
+  transition: background .2s ease;
+}
+
+.notification-item:hover {
+  background: #f9fafb;
+}
+
+.notification-level {
+  width: 10px;
+
+  height: 10px;
+
+  border-radius: 50%;
+
+  margin-top: 6px;
+
+  flex-shrink: 0;
+}
+
+.notification-level.alert {
+  background: #ef4444;
+}
+
+.notification-level.warning {
+  background: #f59e0b;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-size: 13px;
+
+  font-weight: 600;
+
+  color: #111827;
+}
+
+.notification-sub {
+  font-size: 12px;
+
+  color: #6b7280;
+
+  margin-top: 2px;
+}
+
+.view-all-btn {
+  width: 100%;
+
+  height: 38px;
+
+  margin-top: 10px;
+
+  border: none;
+
+  border-radius: 10px;
+
+  background: #2563eb;
+
+  color: white;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+/* Avatar */
+
+.profile-avatar {
+  width: 32px;
+
+  height: 32px;
+
+  border-radius: 50%;
+
+  background:
+    var(--color-green-bg);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  color:
+    var(--color-green-text);
+
+  cursor: pointer;
+}
+
 </style>
