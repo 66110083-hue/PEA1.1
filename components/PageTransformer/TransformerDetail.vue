@@ -1,15 +1,13 @@
 <template>
   <div class="td-page">
-
     <div v-if="!tfInfo" class="td-card">
       <div class="td-empty">
         <i class="ti ti-alert-circle" style="font-size:24px;display:block;margin-bottom:8px"/>
-        ไม่พบข้อมูลหม้อแปลง
+        ไม่พบข้อมูลหม้อแปลง (ID: {{ transformerId }})
       </div>
     </div>
 
     <template v-else>
-
       <div class="td-card">
         <div class="td-card-header">
           <div class="td-card-icon" style="background:var(--color-green);color:white"><i class="ti ti-bolt"/></div>
@@ -46,14 +44,11 @@
             <div v-for="g in gauges" :key="g.label" class="td-gauge-item">
               <svg width="100" height="72" viewBox="0 0 100 72">
                 <path :d="gaugeBgArc(100)" fill="none" stroke="var(--color-border)" stroke-width="5" stroke-linecap="round"/>
-                <path :d="gaugeArc(g.value, g.min, g.max, 100).path" fill="none"
-                  :stroke="gaugeColor(gaugeArc(g.value, g.min, g.max, 100).pct)"
-                  stroke-width="5" stroke-linecap="round"/>
+                <path :d="gaugeArc(g.value, g.min, g.max, 100).path" fill="none" :stroke="gaugeColor(gaugeArc(g.value, g.min, g.max, 100).pct)" stroke-width="5" stroke-linecap="round"/>
                 <circle cx="50" cy="57.6" r="3" fill="var(--color-text-2)"/>
               </svg>
               <span class="td-gauge-value">{{ g.value.toFixed(2) }}</span>
               <span class="td-gauge-label">{{ g.label }} ({{ g.unit }})</span>
-              <span v-if="g.sub" class="td-gauge-sub">↑ {{ g.sub }}</span>
             </div>
           </div>
         </div>
@@ -64,49 +59,17 @@
           <div class="td-card-icon" style="background:#2563EB;color:white"><i class="ti ti-chart-line"/></div>
           <span class="td-card-title">History Chart</span>
           <div class="td-tabs" style="margin-left:12px">
-            <button
-              v-for="tab in METRIC_TABS" :key="tab.key"
-              class="td-tab" :class="{ active: activeMetric === tab.key }"
-              @click="activeMetric = tab.key"
-            >{{ tab.label }}</button>
+            <button v-for="tab in METRIC_TABS" :key="tab.key" class="td-tab" :class="{ active: activeMetric === tab.key }" @click="activeMetric = tab.key">{{ tab.label }}</button>
           </div>
-          <div style="display:flex;gap:6px;margin-left:auto">
-            <button
-              v-for="p in PHASES" :key="p.id"
-              class="td-phase-btn"
-              :class="{ active: activePhases.includes(p.id) }"
-              :style="{ borderColor: p.color, color: p.color, background: activePhases.includes(p.id) ? p.color + '18' : 'transparent' }"
-              @click="activePhases.includes(p.id)
-                ? activePhases.splice(activePhases.indexOf(p.id), 1)
-                : activePhases.push(p.id)"
-            >{{ p.id }}</button>
-          </div>
-          <span style="margin-left:12px;font-size:11px;color:var(--color-text-3)">
-            <span class="td-live-dot"/>{{ lastUpdateText }}
-          </span>
         </div>
         <div class="td-card-body">
-
           <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button
-              class="td-tab"
-              :class="{ active: !hasData }"
-              @click="handleFilter({ range: '1d' }, targetDashboardId)"
-            ><i class="ti ti-refresh" style="font-size:11px"/> โหลดข้อมูล</button>
+            <button class="td-tab" :class="{ active: !hasData }" @click="handleFilter({ range: '1d' }, targetDashboardId)"><i class="ti ti-refresh" style="font-size:11px"/> โหลดข้อมูล</button>
           </div>
-
           <div class="td-chart-wrap">
             <canvas id="historyLineChart"/>
-            <div v-if="isLoading" class="td-loading-overlay">
-              <i class="ti ti-loader-2" style="animation:spin 1s linear infinite"/>
-              กำลังโหลด...
-            </div>
-            <div v-else-if="!hasData" class="td-loading-overlay" style="flex-direction:column;gap:4px">
-              <i class="ti ti-chart-line" style="font-size:24px;color:var(--color-border)"/>
-              <span>กดปุ่ม "โหลดข้อมูล" เพื่อดูกราฟ</span>
-            </div>
+            <div v-if="!hasData" class="td-loading-overlay"><span>กดปุ่ม "โหลดข้อมูล" เพื่อดูกราฟ</span></div>
           </div>
-
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
             <div>
               <div class="td-section"><i class="ti ti-chart-bar"/> Statistics</div>
@@ -119,9 +82,7 @@
               <div class="td-section"><i class="ti ti-scale"/> Phase Balance</div>
               <div v-for="b in balanceData" :key="b.id" class="td-balance-row">
                 <span style="font-family:var(--font-mono);font-weight:600;width:20px" :style="{ color: b.color }">{{ b.id }}</span>
-                <div class="td-balance-bar-bg">
-                  <div class="td-balance-bar" :style="{ width: b.pct + '%', background: b.color }"/>
-                </div>
+                <div class="td-balance-bar-bg"><div class="td-balance-bar" :style="{ width: b.pct + '%', background: b.color }"/></div>
                 <span style="font-family:var(--font-mono);font-size:11px;width:52px;text-align:right">{{ b.avg }} {{ unit }}</span>
               </div>
             </div>
@@ -129,154 +90,86 @@
         </div>
       </div>
 
-      <div class="td-card">
-        <div class="td-card-header">
-          <div class="td-card-icon" style="background:#7C3AED;color:white"><i class="ti ti-table"/></div>
-          <span class="td-card-title">Realtime Data</span>
-          <span style="margin-left:8px;font-size:11px;color:var(--color-text-3)">
-            <span class="td-live-dot"/>ข้อมูล ณ ช่วงเวลานั้น
-          </span>
-        </div>
-        <div v-if="realtimeSnapshot" style="overflow-x:auto">
-          <table class="td-rt-table">
-            <thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead>
-            <tbody>
-              <tr v-for="row in realtimeRows" :key="row.label">
-                <td style="color:var(--color-text-2)">{{ row.label }}</td>
-                <td class="td-rt-val">{{ row.value !== undefined && row.value !== null ? row.value.toFixed(3) : '0.000' }}</td>
-                <td><span class="td-rt-unit">{{ row.unit }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="td-empty">ไม่มีข้อมูล realtime</div>
-      </div>
+      <TransformerRealtimeTable 
+        :rows="realtimeRows" 
+        :allData="historyData ?? []" 
+      />
 
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useDashboard } from '~/composables/useDashboard'
-import { useTransformer, type Transformer } from '~/composables/useTransformer'
+import { useTransformer } from '~/composables/useTransformer'
 
-// ── Props ────────────────────────────────────────────────
-const props = defineProps<{
-  transformerId: string   // รับค่าคีย์สลักเชื่อมเข้ามา (เช่น 'M-01', 'TF-M-01' หรือก้อน Object)
-}>()
+// ✨ แก้ไขเป็น Relative Path เพื่อป้องกันปัญหา Vite หาไฟล์ไม่เจอเด็ดขาด
+import TransformerRealtimeTable from '../TransformerRealtimeTable.vue'
 
-// ── Static info ──────────────────────────────────────────
+const props = defineProps<{ transformerId: string }>()
 const { transformers } = useTransformer()
 
-const tfInfo = computed<Transformer | undefined>(() => {
+const tfInfo = computed(() => {
   if (!props.transformerId) return undefined
   
-  // 🔥 ระบบค้นหาแบบคลุมถุงชน: ล้างรหัส String ให้คลีนที่สุด ป้องกันปัญหาส่ง ID ผิดประเภท
-  const searchId = String(props.transformerId).toLowerCase().replace('tf-', '').trim()
+  const rawId = String(props.transformerId).toLowerCase().replace('tf-', '').trim()
+  
+  // 💡 พัฒนา Logic ค้นหา: ถ้าหลุดมาเป็นเลข Index โดดๆ (เช่น "1", "2") ให้แมปแปลงร่างเป็น "m-01", "m-02" ทันที
+  let searchId = rawId
+  if (!isNaN(Number(rawId))) {
+    searchId = `m-${Number(rawId).toString().padStart(2, '0')}`
+  }
   
   return transformers.value.find(t => {
     if (!t.id) return false
     const currentId = String(t.id).toLowerCase().trim()
     const currentPea = String(t.peaNo).toLowerCase().trim()
-    
-    // ค้นหาเจอถ้ารหัสสั้นตรงกัน หรือซ้อนอยู่ในข้อความ หรือตรงกับรหัสหมายเลข PEA ของหม้อแปลง
-    return currentId === searchId || 
-           searchId.includes(currentId) || 
-           currentId.includes(searchId) ||
-           currentPea.includes(searchId)
+    return currentId === searchId || currentId.replace('tf-', '') === searchId || currentPea.includes(searchId)
   })
 })
 
-// 🔥 ดึงรหัส ID ที่ถูกต้องเพื่อส่งไปให้ตัวจัดการกราฟ useDashboard
-const targetDashboardId = computed(() => {
-  return tfInfo.value ? tfInfo.value.id : props.transformerId
-})
+const targetDashboardId = computed(() => tfInfo.value ? tfInfo.value.id : props.transformerId)
 
-// ── Dashboard (chart + energy data) ─────────────────────
 const {
-  activeMetric, activePhases, hasData, isLoading,
-  PHASES, METRIC_TABS,
-  latest, statistics, balanceData,
-  unit, lastUpdateText,
-  realtimeSnapshot,
-  handleFilter,
+  activeMetric, activePhases, hasData, isLoading, statistics, balanceData,
+  unit, realtimeSnapshot, handleFilter, METRIC_TABS, latest, historyData
 } = useDashboard({ transformerId: targetDashboardId.value })
 
-// ── Realtime table rows (จาก realtimeSnapshot) ──────────
 const realtimeRows = computed(() => {
   const s = realtimeSnapshot.value
   if (!s) return []
   return [
-    { label: 'Voltage Phase A',                     value: s.voltageA,                         unit: 'V'    },
-    { label: 'Voltage Phase B',                     value: s.voltageB,                         unit: 'V'    },
-    { label: 'Voltage Phase C',                     value: s.voltageC,                         unit: 'V'    },
-    { label: 'Current Phase A',                     value: s.currentA,                         unit: 'A'    },
-    { label: 'Current Phase B',                     value: s.currentB,                         unit: 'A'    },
-    { label: 'Current Phase C',                     value: s.currentC,                         unit: 'A'    },
-    { label: 'Total Frequency',                     value: s.frequency,                        unit: 'Hz'   },
-    { label: 'Active Power Import Phase A',         value: s.activePowerImportA,               unit: 'kW'   },
-    { label: 'Active Power Import Phase B',         value: s.activePowerImportB,               unit: 'kW'   },
-    { label: 'Active Power Import Phase C',         value: s.activePowerImportC,               unit: 'kW'   },
-    { label: 'Total Active Power Import',           value: s.totalActivePowerImport,           unit: 'kW'   },
-    { label: 'Active Power Export Phase A',         value: s.activePowerExportA,               unit: 'kW'   },
-    { label: 'Active Power Export Phase B',         value: s.activePowerExportB,               unit: 'kW'   },
-    { label: 'Active Power Export Phase C',         value: s.activePowerExportC,               unit: 'kW'   },
-    { label: 'Total Active Power Export',           value: s.totalActivePowerExport,           unit: 'kW'   },
-    { label: 'Reactive Power Import Phase A',       value: s.reactivePowerImportA,             unit: 'kVAR' },
-    { label: 'Reactive Power Import Phase B',       value: s.reactivePowerImportB,             unit: 'kVAR' },
-    { label: 'Reactive Power Import Phase C',       value: s.reactivePowerImportC,             unit: 'kVAR' },
-    { label: 'Total Reactive Power Import',         value: s.totalReactivePowerImport,         unit: 'kVAR' },
-    { label: 'Reactive Power Export Phase A',       value: s.reactivePowerExportA,             unit: 'kVAR' },
-    { label: 'Reactive Power Export Phase B',       value: s.reactivePowerExportB,             unit: 'kVAR' },
-    { label: 'Reactive Power Export Phase C',       value: s.reactivePowerExportC,             unit: 'kVAR' },
-    { label: 'Total Reactive Power Export',         value: s.totalReactivePowerExport,         unit: 'kVAR' },
-    { label: 'Apparent Power Phase A',              value: s.apparentPowerA,                   unit: 'kVA'  },
-    { label: 'Apparent Power Phase B',              value: s.apparentPowerB,                   unit: 'kVA'  },
-    { label: 'Apparent Power Phase C',              value: s.apparentPowerC,                   unit: 'kVA'  },
-    { label: 'Total Apparent Power',                value: s.totalApparentPower,               unit: 'kVA'  },
-    { label: 'Power Factor Phase A',                value: s.powerFactorA,                     unit: 'PF'   },
-    { label: 'Power Factor Phase B',                value: s.powerFactorB,                     unit: 'PF'   },
-    { label: 'Power Factor Phase C',                value: s.powerFactorC,                     unit: 'PF'   },
-    { label: 'Total Power Factor',                  value: s.totalPowerFactor,                 unit: 'PF'   },
-    { label: 'Import Active Energy',                value: s.importActiveEnergy,               unit: 'kWh'  },
-    { label: 'Distribution Transformer Load Ratio', value: s.distributionTransformerLoadRatio, unit: '%'    },
-    { label: 'Negative Sequence Current Ratio',     value: s.negativeSequenceCurrentRatio,     unit: '%'    },
+    { label: 'Voltage Phase A', value: s.voltageA, unit: 'V' },
+    { label: 'Voltage Phase B', value: s.voltageB, unit: 'V' },
+    { label: 'Voltage Phase C', value: s.voltageC, unit: 'V' },
+    { label: 'Current Phase A', value: s.currentA, unit: 'A' },
+    { label: 'Current Phase B', value: s.currentB, unit: 'A' },
+    { label: 'Current Phase C', value: s.currentC, unit: 'A' },
+    { label: 'Total Frequency', value: s.frequency, unit: 'Hz' },
+    { label: 'Total Active Power Import', value: s.totalActivePowerImport, unit: 'kW' },
+    { label: 'Total Apparent Power', value: s.totalApparentPower, unit: 'kVA' },
+    { label: 'Total Power Factor', value: s.totalPowerFactor, unit: 'PF' },
+    { label: 'Distribution Transformer Load Ratio', value: s.distributionTransformerLoadRatio, unit: '%' }
   ]
 })
 
-// ── Gauge helpers ────────────────────────────────────────
-function gaugeArc(value: number, min: number, max: number, size = 100) {
-  const pct = Math.min(Math.max((value - min) / (max - min), 0), 1)
-  const cx = size / 2, cy = size / 2, r = size * 0.38
-  const sa = -210 * (Math.PI / 180)
-  const ea = sa + 240 * (Math.PI / 180) * pct
-  const x1 = cx + r * Math.cos(sa), y1 = cy + r * Math.sin(sa)
-  const x2 = cx + r * Math.cos(ea), y2 = cy + r * Math.sin(ea)
-  const lg = 240 * (Math.PI / 180) * pct > Math.PI ? 1 : 0
-  return { path: `M ${x1} ${y1} A ${r} ${r} 0 ${lg} 1 ${x2} ${y2}`, pct }
+function gaugeArc(v: number, mn: number, mx: number, sz = 100) {
+  const pct = Math.min(Math.max((v - mn) / (mx - mn), 0), 1); const cx = sz / 2, r = sz * 0.38; const sa = -210 * (Math.PI / 180); const ea = sa + 240 * (Math.PI / 180) * pct
+  return { path: `M ${cx + r * Math.cos(sa)} ${cx + r * Math.sin(sa)} A ${r} ${r} 0 ${240 * (Math.PI / 180) * pct > Math.PI ? 1 : 0} 1 ${cx + r * Math.cos(ea)} ${cx + r * Math.sin(ea)}`, pct }
 }
-function gaugeBgArc(size = 100) {
-  const cx = size / 2, cy = size / 2, r = size * 0.38
-  const s = -210 * (Math.PI / 180), e = s + 240 * (Math.PI / 180)
-  return `M ${cx + r * Math.cos(s)} ${cy + r * Math.sin(s)} A ${r} ${r} 0 1 1 ${cx + r * Math.cos(e)} ${cy + r * Math.sin(e)}`
-}
-function gaugeColor(pct: number) {
-  return pct < 0.6 ? '#1D9E75' : pct < 0.85 ? '#F59E0B' : '#EF4444'
-}
+function gaugeBgArc(sz = 100) { const cx = sz / 2, r = sz * 0.38; const s = -210 * (Math.PI / 180), e = s + 240 * (Math.PI / 180); return `M ${cx + r * Math.cos(s)} ${cx + r * Math.sin(s)} A ${r} ${r} 0 1 1 ${cx + r * Math.cos(e)} ${cx + r * Math.sin(e)}` }
+function gaugeColor(pct: number) { return pct < 0.6 ? '#1D9E75' : pct < 0.85 ? '#F59E0B' : '#EF4444' }
 
 const gauges = computed(() => {
   const l = latest.value
   return [
-    { label: 'Voltage L1',     value: l.A?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
-    { label: 'Voltage L2',     value: l.B?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
-    { label: 'Voltage L3',     value: l.C?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
-    { label: 'Current L1',     value: l.A?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Current L2',     value: l.B?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Current L3',     value: l.C?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Active P L1',    value: l.A?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
-    { label: 'Active P L2',    value: l.B?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
-    { label: 'Active P L3',    value: l.C?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
+    { label: 'Voltage L1', value: l.A?.voltage ?? 0, mn: 180, mx: 260, unit: 'V' },
+    { label: 'Voltage L2', value: l.B?.voltage ?? 0, mn: 180, mx: 260, unit: 'V' },
+    { label: 'Voltage L3', value: l.C?.voltage ?? 0, mn: 180, mx: 260, unit: 'V' },
+    { label: 'Current L1', value: l.A?.current ?? 0, mn: 0, mx: 600, unit: 'A' },
+    { label: 'Current L2', value: l.B?.current ?? 0, mn: 0, mx: 600, unit: 'A' },
+    { label: 'Current L3', value: l.C?.current ?? 0, mn: 0, mx: 600, unit: 'A' }
   ]
 })
 </script>
@@ -285,81 +178,35 @@ const gauges = computed(() => {
 .td-page { display:flex; flex-direction:column; gap:16px; }
 .td-card { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); overflow:hidden; }
 .td-card-header { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--color-border); background:var(--color-surface-2); }
-.td-card-icon { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+.td-card-icon { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; }
 .td-card-title { font-size:13px; font-weight:600; color:var(--color-text-1); }
 .td-card-body { padding:16px; }
-
-/* Metric tabs */
 .td-tabs { display:flex; gap:4px; }
-.td-tab {
-  padding:5px 14px; border-radius:var(--radius-md); font-size:12px;
-  font-weight:500; cursor:pointer; border:1px solid var(--color-border-md);
-  background:transparent; color:var(--color-text-2); transition:all 0.12s;
-  font-family:var(--font-sans);
-}
+.td-tab { padding:5px 14px; border-radius:var(--radius-md); font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--color-border-md); background:transparent; color:var(--color-text-2); }
 .td-tab.active { background:var(--color-green); color:white; border-color:transparent; }
-
-/* Phase toggle */
-.td-phase-btn {
-  padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600;
-  cursor:pointer; border:2px solid; transition:opacity 0.12s;
-  font-family:var(--font-mono);
-}
-.td-phase-btn.active { opacity:1; }
-.td-phase-btn:not(.active) { opacity:0.35; }
-
-/* Transformer info */
 .td-hero { display:flex; gap:20px; padding-bottom:16px; border-bottom:1px solid var(--color-border); margin-bottom:16px; }
-.td-img-box { width:110px; height:110px; border-radius:8px; background:var(--color-surface-2); border:1px solid var(--color-border); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:36px; }
+.td-img-box { width:110px; height:110px; border-radius:8px; background:var(--color-surface-2); border:1px solid var(--color-border); display:flex; align-items:center; justify-content:center; font-size:36px; }
 .td-info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px 16px; flex:1; }
 .td-info-item { display:flex; flex-direction:column; gap:2px; }
-.td-info-label { font-size:10px; color:var(--color-text-3); text-transform:uppercase; letter-spacing:0.05em; }
+.td-info-label { font-size:10px; color:var(--color-text-3); text-transform:uppercase; }
 .td-info-value { font-size:12px; color:var(--color-text-1); font-weight:500; font-family:var(--font-mono); }
-
-.td-status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:500; }
-.td-status-badge.online  { background:rgba(29,158,117,0.12); color:#1D9E75; }
+.td-status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:11px; }
+.td-status-badge.online { background:rgba(29,158,117,0.12); color:#1D9E75; }
 .td-status-badge.offline { background:rgba(154,160,176,0.15); color:#9aa0b0; }
 .td-dot { width:6px; height:6px; border-radius:50%; }
-.td-dot.online  { background:#1D9E75; }
+.td-dot.online { background:#1D9E75; }
 .td-dot.offline { background:#9aa0b0; }
-
-/* Chart */
-.td-chart-wrap { position:relative; height:220px; }
-.td-loading-overlay {
-  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  background:rgba(var(--color-surface-rgb,255,255,255),0.7);
-  font-size:12px; color:var(--color-text-3); gap:8px; border-radius:var(--radius-lg);
-}
-
-/* Gauges */
+.td-chart-wrap { position:relative; height:220px; border:1px solid var(--color-border); border-radius:8px; }
+.td-loading-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.7); font-size:12px; color:var(--color-text-3); }
 .td-gauges-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; }
-.td-gauge-item { display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 8px; background:var(--color-surface-2); border:1px solid var(--color-border); border-radius:8px; }
-.td-gauge-label { font-size:9px; color:var(--color-text-3); text-align:center; text-transform:uppercase; letter-spacing:0.04em; line-height:1.3; }
-.td-gauge-value { font-size:13px; font-weight:700; font-family:var(--font-mono); color:var(--color-text-1); }
-.td-gauge-sub   { font-size:9px; color:var(--color-text-3); }
-
-/* Statistics bar */
+.td-gauge-item { display:flex; flex-direction:column; align-items:center; padding:10px 8px; background:var(--color-surface-2); border:1px solid var(--color-border); border-radius:8px; }
+.td-gauge-label { font-size:9px; color:var(--color-text-3); }
+.td-gauge-value { font-size:13px; font-weight:700; font-family:var(--font-mono); }
 .td-stat-row { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--color-border); font-size:12px; }
-.td-stat-row:last-child { border-bottom:none; }
-
-/* Balance */
 .td-balance-row { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:12px; }
 .td-balance-bar-bg { flex:1; height:6px; border-radius:3px; background:var(--color-border); overflow:hidden; }
-.td-balance-bar    { height:100%; border-radius:3px; transition:width 0.4s; }
-
-/* Realtime table */
-.td-rt-table { width:100%; border-collapse:collapse; font-size:12px; }
-.td-rt-table th { padding:7px 12px; text-align:left; background:var(--color-surface-2); color:var(--color-text-3); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--color-border); }
-.td-rt-table td { padding:7px 12px; border-bottom:1px solid var(--color-border); }
-.tr:last-child td { border-bottom:none; }
-.td-rt-table tr:hover td { background:var(--color-bg); }
-.td-rt-val  { font-family:var(--font-mono); font-weight:500; color:var(--color-text-1); }
-.td-rt-unit { font-size:10px; color:var(--color-text-3); margin-left:3px; }
-
-.td-live-dot { width:6px; height:6px; border-radius:50%; background:#1D9E75; display:inline-block; margin-right:4px; animation:pulse 2s ease-in-out infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-.td-section { font-size:11px; font-weight:600; color:var(--color-text-2); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.td-balance-bar { height:100%; transition:width 0.4s; }
+.td-section { font-size:11px; font-weight:600; color:var(--color-text-2); text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
 .td-section::after { content:''; flex:1; height:1px; background:var(--color-border); }
 .td-empty { padding:40px; text-align:center; color:var(--color-text-3); font-size:13px; }
 </style>
