@@ -4,13 +4,10 @@ import { ref } from 'vue'
 const username = ref('')
 const password = ref('')
 
-// กำหนด Emit สำหรับส่งสัญญาณบอกข้อมูลแอปหลัก (App.vue)
 const emit = defineEmits(['login-success'])
 
 const submitLogin = () => {
-  // ⚡ ตั้งค่ารหัสผ่านจำลองไว้ที่นี่
   if (username.value === 'admin' && password.value === '1234') {
-    // ส่งสัญญาณไปบอก App.vue ว่าล็อกอินผ่านแล้ว
     emit('login-success')
   } else {
     alert('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง')
@@ -19,7 +16,7 @@ const submitLogin = () => {
 </script>
 
 <template>
-  <div class="login-wrapper">
+  <div class="fixed-login-overlay">
     <div class="login-card">
       <div class="login-header">
         <img src="/logo.png" alt="logo" class="login-logo" />
@@ -46,26 +43,31 @@ const submitLogin = () => {
 
 <style scoped>
 /* ==========================================================================
-   เพิ่มสไตล์ตรงนี้เพื่อดึงฟอร์มทั้งหมดล็อกให้อยู่จุดศูนย์กลางของจอภาพ
+   จุดแก้ไขหลัก: ใช้ fixed เพื่อตัดขาดจากระบบ layout ของหน้าอื่นที่พังอยู่
    ========================================================================== */
-.login-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.fixed-login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
-  background: #f4f6f9; /* สีพื้นหลังสว่างเนียนตา */
+  background: #f4f6f9; /* สีพื้นหลัง */
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 99999; /* เด้งมาอยู่ชั้นบนสุด */
   box-sizing: border-box;
 }
 
-/* สไตล์ตกแต่งกล่อง Login ให้สวยงามเข้ากับธีม */
+/* กล่องขาวล็อกขนาดให้เป็นกล่อง ไม่ให้ขยายตัวยืดเต็มจอ */
 .login-card {
   background: #ffffff;
   padding: 2.5rem;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   width: 100%;
-  max-width: 420px;
+  max-width: 420px; /* ล็อกความกว้างไว้เท่านี้เสมอ */
+  height: auto;     /* ปล่อยความสูงให้พอดีกับเนื้อหา ไม่ยืดเต็มจอ */
   text-align: center;
   box-sizing: border-box;
 }
@@ -118,13 +120,13 @@ const submitLogin = () => {
 }
 
 .form-group input:focus {
-  border-color: #800080; /* สีม่วงตามธีมหลัก PEA */
+  border-color: #800080;
 }
 
 .btn-login {
   width: 100%;
   padding: 0.9rem;
-  background: #800080; /* สีม่วงหลัก */
+  background: #800080;
   color: #ffffff;
   border: none;
   border-radius: 8px;
