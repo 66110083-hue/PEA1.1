@@ -8,19 +8,56 @@ const password = ref('')
 const emit = defineEmits(['login-success'])
 
 const submitLogin = () => {
-  // ⚡ ตั้งค่ารหัสผ่านจำลองไว้ที่นี่ (สามารถเปลี่ยนตามต้องการได้ครับ)
+  // ⚡ ตั้งค่ารหัสผ่านจำลองไว้ที่นี่
   if (username.value === 'admin' && password.value === '1234') {
-    
     // ส่งสัญญาณไปบอก App.vue ว่าล็อกอินผ่านแล้ว
     emit('login-success')
-    
   } else {
     alert('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง')
   }
 }
 </script>
 
+<template>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-header">
+        <img src="/logo.png" alt="logo" class="login-logo" />
+        <h2>PEA Energy Monitor</h2>
+        <p>กรุณาเข้าสู่ระบบเพื่อใช้งานระบบมอนิเตอร์</p>
+      </div>
+
+      <form @submit.prevent="submitLogin">
+        <div class="form-group">
+          <label>ชื่อผู้ใช้งาน (Username)</label>
+          <input type="text" v-model="username" required placeholder="กรอกชื่อผู้ใช้งาน" />
+        </div>
+
+        <div class="form-group">
+          <label>รหัสผ่าน (Password)</label>
+          <input type="password" v-model="password" required placeholder="กรอกรหัสผ่าน" />
+        </div>
+
+        <button type="submit" class="btn-login">เข้าสู่ระบบ</button>
+      </form>
+    </div>
+  </div>
+</template>
+
 <style scoped>
+/* ==========================================================================
+   เพิ่มสไตล์ตรงนี้เพื่อดึงฟอร์มทั้งหมดล็อกให้อยู่จุดศูนย์กลางของจอภาพ
+   ========================================================================== */
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  background: #f4f6f9; /* สีพื้นหลังสว่างเนียนตา */
+  box-sizing: border-box;
+}
+
 /* สไตล์ตกแต่งกล่อง Login ให้สวยงามเข้ากับธีม */
 .login-card {
   background: #ffffff;
@@ -30,6 +67,7 @@ const submitLogin = () => {
   width: 100%;
   max-width: 420px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .login-header {
@@ -80,7 +118,7 @@ const submitLogin = () => {
 }
 
 .form-group input:focus {
-  border-color: #800080; /* สีม่วงตามธีมหลัก PEA หรือปรับตามต้องการ */
+  border-color: #800080; /* สีม่วงตามธีมหลัก PEA */
 }
 
 .btn-login {
@@ -101,29 +139,3 @@ const submitLogin = () => {
   background: #660066;
 }
 </style>
-
-<template>
-  <div class="login-card">
-    <div class="login-header">
-      <!-- ดึง Logo ตัวเดียวกับบน Sidebar มาใช้ -->
-      <img src="/logo.png" alt="logo" class="login-logo" />
-      <h2>PEA Energy Monitor</h2>
-      <p>กรุณาเข้าสู่ระบบเพื่อใช้งานระบบมอนิเตอร์</p>
-    </div>
-
-    <form @submit.prevent="submitLogin">
-      <div class="form-group">
-        <label>ชื่อผู้ใช้งาน (Username)</label>
-        <input type="text" v-model="username" required placeholder="กรอกชื่อผู้ใช้งาน" />
-      </div>
-
-      <div class="form-group">
-        <label>รหัสผ่าน (Password)</label>
-        <input type="password" v-model="password" required placeholder="กรอกรหัสผ่าน" />
-      </div>
-
-      <button type="submit" class="btn-login">เข้าสู่ระบบ</button>
-    </form>
-  </div>
-</template>
-
