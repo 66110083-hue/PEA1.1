@@ -11,6 +11,7 @@ const activeFilter = ref<
 >('all')
 
 const filteredAlerts = computed(() => {
+
   if (activeFilter.value === 'all') {
     return allAlerts
   }
@@ -18,6 +19,7 @@ const filteredAlerts = computed(() => {
   return allAlerts.filter(
     a => a.level === activeFilter.value
   )
+
 })
 
 const criticalCount = computed(() =>
@@ -27,6 +29,7 @@ const criticalCount = computed(() =>
 )
 
 const filters = computed(() => [
+
   {
     key: 'all' as const,
     label: 'ทั้งหมด',
@@ -56,26 +59,31 @@ const filters = computed(() => [
       a => a.level === 'info'
     ).length,
   },
+
 ])
 </script>
 
 <template>
+
   <div class="alert-card">
 
     <!-- Header -->
     <div class="alert-header">
+
       <div class="header-left">
-        <span class="bell-icon">🔔</span>
+        <i class="ti ti-bell bell-icon"/>
         <span>การแจ้งเตือน</span>
       </div>
 
       <div class="critical-badge">
         {{ criticalCount }} รายการวิกฤต
       </div>
+
     </div>
 
     <!-- Filters -->
     <div class="filter-row">
+
       <button
         v-for="f in filters"
         :key="f.key"
@@ -88,6 +96,7 @@ const filters = computed(() => [
         {{ f.label }}
         ({{ f.count }})
       </button>
+
     </div>
 
     <!-- Alert List -->
@@ -96,7 +105,8 @@ const filters = computed(() => [
       :key="item.id"
       class="alert-item"
     >
-      <!-- Dot -->
+
+      <!-- Status Dot -->
       <div
         class="alert-dot"
         :style="{
@@ -107,6 +117,7 @@ const filters = computed(() => [
 
       <!-- Content -->
       <div class="alert-content">
+
         <div class="alert-title">
           {{ item.title }}
         </div>
@@ -114,38 +125,40 @@ const filters = computed(() => [
         <div class="alert-sub">
           {{ item.sub }}
         </div>
+
       </div>
 
       <!-- Time -->
       <div class="alert-time">
         {{ item.time }}
       </div>
+
     </div>
 
   </div>
+
 </template>
 
 <style scoped>
+
+/* =========================
+   Card
+========================= */
+
 .alert-card {
   background: #ffffff;
 
   border-radius: 16px;
 
-  border: 1px solid #edf0f2;
+  border: 1px solid var(--color-border);
 
-  padding: 20px;
+  padding: 18px;
 
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--font-sans);
 
   box-shadow:
     0 1px 2px rgba(16,24,40,.04),
-    0 1px 3px rgba(16,24,40,.08);
+    0 1px 3px rgba(16,24,40,.06);
 }
 
 /* =========================
@@ -169,17 +182,19 @@ const filters = computed(() => [
 
   gap: 10px;
 
-  font-size: 17px;
+  font-size: 14px;
 
-  font-weight: 600;
+  font-weight: 700;
 
   letter-spacing: -.2px;
 
-  color: #1f2937;
+  color: var(--color-text-1);
 }
 
 .bell-icon {
-  font-size: 18px;
+  font-size: 16px;
+
+  color: #f59e0b;
 }
 
 .critical-badge {
@@ -191,7 +206,7 @@ const filters = computed(() => [
 
   border-radius: 999px;
 
-  font-size: 12px;
+  font-size: 11px;
 
   font-weight: 600;
 
@@ -205,47 +220,47 @@ const filters = computed(() => [
 .filter-row {
   display: flex;
 
-  gap: 10px;
+  gap: 8px;
 
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 
   flex-wrap: wrap;
 }
 
 .filter-btn {
-  border: 1px solid #e5e7eb;
-
   height: 36px;
 
   padding: 0 14px;
 
   border-radius: 10px;
 
-  background: #f9fafb;
+  border: 1px solid #dbe0e6;
 
-  color: #4b5563;
+  background: #ffffff;
+
+  color: var(--color-text-2);
 
   cursor: pointer;
 
-  font-size: 13px;
+  font-size: 12px;
 
   font-weight: 500;
 
-  transition: all .2s ease;
+  font-family: var(--font-sans);
+
+  transition: all .15s ease;
 }
 
 .filter-btn:hover {
-  background: #f3f4f6;
-
-  border-color: #d1d5db;
+  opacity: .85;
 }
 
 .filter-btn.active {
   background: #2563eb;
 
-  color: white;
-
   border-color: #2563eb;
+
+  color: white;
 }
 
 /* =========================
@@ -255,19 +270,21 @@ const filters = computed(() => [
 .alert-item {
   display: flex;
 
-  align-items: flex-start;
+  align-items: center;
 
-  gap: 14px;
+  gap: 12px;
 
-  padding: 16px 4px;
+  min-height: 72px;
 
-  border-top: 1px solid #f3f4f6;
+  padding: 12px 6px;
 
-  transition: background .2s ease;
+  border-top: 1px solid var(--color-border);
+
+  transition: background .15s ease;
 }
 
 .alert-item:hover {
-  background: #fafafa;
+  background: var(--color-bg);
 }
 
 .alert-dot {
@@ -277,8 +294,6 @@ const filters = computed(() => [
 
   border-radius: 50%;
 
-  margin-top: 7px;
-
   flex-shrink: 0;
 }
 
@@ -287,39 +302,35 @@ const filters = computed(() => [
 }
 
 .alert-title {
-  font-size: 15px;
+  font-size: 13px;
 
   font-weight: 600;
 
-  line-height: 1.4;
+  line-height: 1.3;
 
-  letter-spacing: -.1px;
+  color: var(--color-text-1);
 
-  color: #1f2937;
-
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .alert-sub {
-  font-size: 13px;
+  font-size: 12px;
 
-  line-height: 1.5;
+  color: var(--color-text-3);
 
-  color: #6b7280;
+  line-height: 1.4;
 }
 
 .alert-time {
-  font-size: 12px;
+  font-size: 11px;
 
   font-weight: 500;
 
-  color: #9ca3af;
+  color: var(--color-text-3);
 
   white-space: nowrap;
 
   margin-left: 12px;
-
-  padding-top: 2px;
 }
 
 /* =========================
@@ -327,6 +338,7 @@ const filters = computed(() => [
 ========================= */
 
 @media (max-width: 768px) {
+
   .alert-header {
     flex-direction: column;
 
@@ -342,7 +354,9 @@ const filters = computed(() => [
   .alert-time {
     width: 100%;
 
-    margin-left: 24px;
+    margin-left: 22px;
   }
+
 }
+
 </style>
