@@ -1,3 +1,128 @@
+<script setup lang="ts">
+import { computed, watch } from 'vue'
+import { useDashboard } from '~/composables/useDashboard'
+import { useTransformer, type Transformer } from '~/composables/useTransformer'
+import TransformerRealtimeTable from '/home/supanat01/PEA-main/components/PageTransformer/TransformerRealtimeTable.vue'
+// ── Props ────────────────────────────────────────────────
+const props = defineProps<{
+  transformerId: string   // รับค่าคีย์สลักเชื่อมเข้ามา (เช่น 'M-01', 'TF-M-01' หรือก้อน Object)
+}>()
+
+// ── Static info ──────────────────────────────────────────
+const { transformers } = useTransformer()
+
+const tfInfo = computed<Transformer | undefined>(() => {
+  if (!props.transformerId) return undefined
+  
+  // 🔥 ระบบค้นหาแบบคลุมถุงชน: ล้างรหัส String ให้คลีนที่สุด ป้องกันปัญหาส่ง ID ผิดประเภท
+  const searchId = String(props.transformerId).toLowerCase().replace('tf-', '').trim()
+  
+  return transformers.value.find(t => {
+    if (!t.id) return false
+    const currentId = String(t.id).toLowerCase().trim()
+    const currentPea = String(t.peaNo).toLowerCase().trim()
+    
+    // ค้นหาเจอถ้ารหัสสั้นตรงกัน หรือซ้อนอยู่ในข้อความ หรือตรงกับรหัสหมายเลข PEA ของหม้อแปลง
+    return currentId === searchId || 
+           searchId.includes(currentId) || 
+           currentId.includes(searchId) ||
+           currentPea.includes(searchId)
+  })
+})
+
+// 🔥 ดึงรหัส ID ที่ถูกต้องเพื่อส่งไปให้ตัวจัดการกราฟ useDashboard
+const targetDashboardId = computed(() => {
+  return tfInfo.value ? tfInfo.value.id : props.transformerId
+})
+
+// ── Dashboard (chart + energy data) ─────────────────────
+const {
+  activeMetric, activePhases, hasData, isLoading,
+  PHASES, METRIC_TABS,
+  latest, statistics, balanceData,
+  unit, lastUpdateText,
+  realtimeSnapshot,
+  handleFilter,
+} = useDashboard({ transformerId: targetDashboardId.value })
+
+// ── Realtime table rows (จาก realtimeSnapshot) ──────────
+// 📂 components/PageTransformer/TransformerDetail.vue
+
+const realtimeRows = computed(() => {
+  // 1. ลองตรวจสอบว่ามีข้อมูล realtimeSnapshot ตรงๆ หรือไม่
+  const s = realtimeSnapshot.value
+  if (s && Object.keys(s).length > 0) {
+    return [
+      { label: 'Voltage Phase A', value: s.voltageA, unit: 'V' },
+      { label: 'Voltage Phase B', value: s.voltageB, unit: 'V' },
+      { label: 'Voltage Phase C', value: s.voltageC, unit: 'V' },
+      { label: 'Current Phase A', value: s.currentA, unit: 'A' },
+      { label: 'Current Phase B', value: s.currentB, unit: 'A' },
+      { label: 'Current Phase C', value: s.currentC, unit: 'A' },
+      { label: 'Total Frequency', value: s.frequency, unit: 'Hz' },
+      { label: 'Total Active Power Import', value: s.totalActivePowerImport, unit: 'kW' },
+      { label: 'Total Apparent Power', value: s.totalApparentPower, unit: 'kVA' },
+      { label: 'Total Power Factor', value: s.totalPowerFactor, unit: 'PF' },
+      { label: 'Distribution Transformer Load Ratio', value: s.distributionTransformerLoadRatio, unit: '%' }
+    ]
+  }
+
+  // 2. ✨ แผนสำรอง: ถ้า realtimeSnapshot ว่างเปล่า ให้ดึงข้อมูลจาก latest (ตัวเดียวกับที่เกจหน้าปัดใช้) มาแสดงแทน!
+  const l = latest.value
+  if (l && Object.keys(l).length > 0) {
+    return [
+      { label: 'Voltage Phase A', value: l.A?.voltage ?? 0, unit: 'V' },
+      { label: 'Voltage Phase B', value: l.B?.voltage ?? 0, unit: 'V' },
+      { label: 'Voltage Phase C', value: l.C?.voltage ?? 0, unit: 'V' },
+      { label: 'Current Phase A', value: l.A?.current ?? 0, unit: 'A' },
+      { label: 'Current Phase B', value: l.B?.current ?? 0, unit: 'A' },
+      { label: 'Current Phase C', value: l.C?.current ?? 0, unit: 'A' },
+      { label: 'Active Power Phase A', value: l.A?.power ?? 0, unit: 'kW' },
+      { label: 'Active Power Phase B', value: l.B?.power ?? 0, unit: 'kW' },
+      { label: 'Active Power Phase C', value: l.C?.power ?? 0, unit: 'kW' },
+    ]
+  }
+
+  // 3. ถ้าไม่มีข้อมูลเลยจริงๆ ค่อยส่ง Array ว่างกลับไปเพื่อแสดงข้อความ "ไม่มีข้อมูล realtime"
+  return []
+})
+
+// ── Gauge helpers ────────────────────────────────────────
+function gaugeArc(value: number, min: number, max: number, size = 100) {
+  const pct = Math.min(Math.max((value - min) / (max - min), 0), 1)
+  const cx = size / 2, cy = size / 2, r = size * 0.38
+  const sa = -210 * (Math.PI / 180)
+  const ea = sa + 240 * (Math.PI / 180) * pct
+  const x1 = cx + r * Math.cos(sa), y1 = cy + r * Math.sin(sa)
+  const x2 = cx + r * Math.cos(ea), y2 = cy + r * Math.sin(ea)
+  const lg = 240 * (Math.PI / 180) * pct > Math.PI ? 1 : 0
+  return { path: `M ${x1} ${y1} A ${r} ${r} 0 ${lg} 1 ${x2} ${y2}`, pct }
+}
+function gaugeBgArc(size = 100) {
+  const cx = size / 2, cy = size / 2, r = size * 0.38
+  const s = -210 * (Math.PI / 180), e = s + 240 * (Math.PI / 180)
+  return `M ${cx + r * Math.cos(s)} ${cy + r * Math.sin(s)} A ${r} ${r} 0 1 1 ${cx + r * Math.cos(e)} ${cy + r * Math.sin(e)}`
+}
+function gaugeColor(pct: number) {
+  return pct < 0.6 ? '#1D9E75' : pct < 0.85 ? '#F59E0B' : '#EF4444'
+}
+
+const gauges = computed(() => {
+  const l = latest.value
+  return [
+    { label: 'Voltage L1',     value: l.A?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
+    { label: 'Voltage L2',     value: l.B?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
+    { label: 'Voltage L3',     value: l.C?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
+    { label: 'Current L1',     value: l.A?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
+    { label: 'Current L2',     value: l.B?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
+    { label: 'Current L3',     value: l.C?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
+    { label: 'Active P L1',    value: l.A?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
+    { label: 'Active P L2',    value: l.B?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
+    { label: 'Active P L3',    value: l.C?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
+  ]
+})
+</script>
+
 <template>
   <div class="td-page">
 
@@ -129,157 +254,15 @@
         </div>
       </div>
 
-      <div class="td-card">
-        <div class="td-card-header">
-          <div class="td-card-icon" style="background:#7C3AED;color:white"><i class="ti ti-table"/></div>
-          <span class="td-card-title">Realtime Data</span>
-          <span style="margin-left:8px;font-size:11px;color:var(--color-text-3)">
-            <span class="td-live-dot"/>ข้อมูล ณ ช่วงเวลานั้น
-          </span>
-        </div>
-        <div v-if="realtimeSnapshot" style="overflow-x:auto">
-          <table class="td-rt-table">
-            <thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead>
-            <tbody>
-              <tr v-for="row in realtimeRows" :key="row.label">
-                <td style="color:var(--color-text-2)">{{ row.label }}</td>
-                <td class="td-rt-val">{{ row.value !== undefined && row.value !== null ? row.value.toFixed(3) : '0.000' }}</td>
-                <td><span class="td-rt-unit">{{ row.unit }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="td-empty">ไม่มีข้อมูล realtime</div>
-      </div>
+<TransformerRealtimeTable 
+  :rows="realtimeRows" 
+  :allData="historyData ?? []" 
+/>
 
     </template>
   </div>
 </template>
 
-<script setup lang="ts">
-import { computed, watch } from 'vue'
-import { useDashboard } from '~/composables/useDashboard'
-import { useTransformer, type Transformer } from '~/composables/useTransformer'
-
-// ── Props ────────────────────────────────────────────────
-const props = defineProps<{
-  transformerId: string   // รับค่าคีย์สลักเชื่อมเข้ามา (เช่น 'M-01', 'TF-M-01' หรือก้อน Object)
-}>()
-
-// ── Static info ──────────────────────────────────────────
-const { transformers } = useTransformer()
-
-const tfInfo = computed<Transformer | undefined>(() => {
-  if (!props.transformerId) return undefined
-  
-  // 🔥 ระบบค้นหาแบบคลุมถุงชน: ล้างรหัส String ให้คลีนที่สุด ป้องกันปัญหาส่ง ID ผิดประเภท
-  const searchId = String(props.transformerId).toLowerCase().replace('tf-', '').trim()
-  
-  return transformers.value.find(t => {
-    if (!t.id) return false
-    const currentId = String(t.id).toLowerCase().trim()
-    const currentPea = String(t.peaNo).toLowerCase().trim()
-    
-    // ค้นหาเจอถ้ารหัสสั้นตรงกัน หรือซ้อนอยู่ในข้อความ หรือตรงกับรหัสหมายเลข PEA ของหม้อแปลง
-    return currentId === searchId || 
-           searchId.includes(currentId) || 
-           currentId.includes(searchId) ||
-           currentPea.includes(searchId)
-  })
-})
-
-// 🔥 ดึงรหัส ID ที่ถูกต้องเพื่อส่งไปให้ตัวจัดการกราฟ useDashboard
-const targetDashboardId = computed(() => {
-  return tfInfo.value ? tfInfo.value.id : props.transformerId
-})
-
-// ── Dashboard (chart + energy data) ─────────────────────
-const {
-  activeMetric, activePhases, hasData, isLoading,
-  PHASES, METRIC_TABS,
-  latest, statistics, balanceData,
-  unit, lastUpdateText,
-  realtimeSnapshot,
-  handleFilter,
-} = useDashboard({ transformerId: targetDashboardId.value })
-
-// ── Realtime table rows (จาก realtimeSnapshot) ──────────
-const realtimeRows = computed(() => {
-  const s = realtimeSnapshot.value
-  if (!s) return []
-  return [
-    { label: 'Voltage Phase A',                     value: s.voltageA,                         unit: 'V'    },
-    { label: 'Voltage Phase B',                     value: s.voltageB,                         unit: 'V'    },
-    { label: 'Voltage Phase C',                     value: s.voltageC,                         unit: 'V'    },
-    { label: 'Current Phase A',                     value: s.currentA,                         unit: 'A'    },
-    { label: 'Current Phase B',                     value: s.currentB,                         unit: 'A'    },
-    { label: 'Current Phase C',                     value: s.currentC,                         unit: 'A'    },
-    { label: 'Total Frequency',                     value: s.frequency,                        unit: 'Hz'   },
-    { label: 'Active Power Import Phase A',         value: s.activePowerImportA,               unit: 'kW'   },
-    { label: 'Active Power Import Phase B',         value: s.activePowerImportB,               unit: 'kW'   },
-    { label: 'Active Power Import Phase C',         value: s.activePowerImportC,               unit: 'kW'   },
-    { label: 'Total Active Power Import',           value: s.totalActivePowerImport,           unit: 'kW'   },
-    { label: 'Active Power Export Phase A',         value: s.activePowerExportA,               unit: 'kW'   },
-    { label: 'Active Power Export Phase B',         value: s.activePowerExportB,               unit: 'kW'   },
-    { label: 'Active Power Export Phase C',         value: s.activePowerExportC,               unit: 'kW'   },
-    { label: 'Total Active Power Export',           value: s.totalActivePowerExport,           unit: 'kW'   },
-    { label: 'Reactive Power Import Phase A',       value: s.reactivePowerImportA,             unit: 'kVAR' },
-    { label: 'Reactive Power Import Phase B',       value: s.reactivePowerImportB,             unit: 'kVAR' },
-    { label: 'Reactive Power Import Phase C',       value: s.reactivePowerImportC,             unit: 'kVAR' },
-    { label: 'Total Reactive Power Import',         value: s.totalReactivePowerImport,         unit: 'kVAR' },
-    { label: 'Reactive Power Export Phase A',       value: s.reactivePowerExportA,             unit: 'kVAR' },
-    { label: 'Reactive Power Export Phase B',       value: s.reactivePowerExportB,             unit: 'kVAR' },
-    { label: 'Reactive Power Export Phase C',       value: s.reactivePowerExportC,             unit: 'kVAR' },
-    { label: 'Total Reactive Power Export',         value: s.totalReactivePowerExport,         unit: 'kVAR' },
-    { label: 'Apparent Power Phase A',              value: s.apparentPowerA,                   unit: 'kVA'  },
-    { label: 'Apparent Power Phase B',              value: s.apparentPowerB,                   unit: 'kVA'  },
-    { label: 'Apparent Power Phase C',              value: s.apparentPowerC,                   unit: 'kVA'  },
-    { label: 'Total Apparent Power',                value: s.totalApparentPower,               unit: 'kVA'  },
-    { label: 'Power Factor Phase A',                value: s.powerFactorA,                     unit: 'PF'   },
-    { label: 'Power Factor Phase B',                value: s.powerFactorB,                     unit: 'PF'   },
-    { label: 'Power Factor Phase C',                value: s.powerFactorC,                     unit: 'PF'   },
-    { label: 'Total Power Factor',                  value: s.totalPowerFactor,                 unit: 'PF'   },
-    { label: 'Import Active Energy',                value: s.importActiveEnergy,               unit: 'kWh'  },
-    { label: 'Distribution Transformer Load Ratio', value: s.distributionTransformerLoadRatio, unit: '%'    },
-    { label: 'Negative Sequence Current Ratio',     value: s.negativeSequenceCurrentRatio,     unit: '%'    },
-  ]
-})
-
-// ── Gauge helpers ────────────────────────────────────────
-function gaugeArc(value: number, min: number, max: number, size = 100) {
-  const pct = Math.min(Math.max((value - min) / (max - min), 0), 1)
-  const cx = size / 2, cy = size / 2, r = size * 0.38
-  const sa = -210 * (Math.PI / 180)
-  const ea = sa + 240 * (Math.PI / 180) * pct
-  const x1 = cx + r * Math.cos(sa), y1 = cy + r * Math.sin(sa)
-  const x2 = cx + r * Math.cos(ea), y2 = cy + r * Math.sin(ea)
-  const lg = 240 * (Math.PI / 180) * pct > Math.PI ? 1 : 0
-  return { path: `M ${x1} ${y1} A ${r} ${r} 0 ${lg} 1 ${x2} ${y2}`, pct }
-}
-function gaugeBgArc(size = 100) {
-  const cx = size / 2, cy = size / 2, r = size * 0.38
-  const s = -210 * (Math.PI / 180), e = s + 240 * (Math.PI / 180)
-  return `M ${cx + r * Math.cos(s)} ${cy + r * Math.sin(s)} A ${r} ${r} 0 1 1 ${cx + r * Math.cos(e)} ${cy + r * Math.sin(e)}`
-}
-function gaugeColor(pct: number) {
-  return pct < 0.6 ? '#1D9E75' : pct < 0.85 ? '#F59E0B' : '#EF4444'
-}
-
-const gauges = computed(() => {
-  const l = latest.value
-  return [
-    { label: 'Voltage L1',     value: l.A?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
-    { label: 'Voltage L2',     value: l.B?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
-    { label: 'Voltage L3',     value: l.C?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
-    { label: 'Current L1',     value: l.A?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Current L2',     value: l.B?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Current L3',     value: l.C?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Active P L1',    value: l.A?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
-    { label: 'Active P L2',    value: l.B?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
-    { label: 'Active P L3',    value: l.C?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
-  ]
-})
-</script>
 
 <style scoped>
 .td-page { display:flex; flex-direction:column; gap:16px; }

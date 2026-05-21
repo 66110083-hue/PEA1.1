@@ -97,6 +97,118 @@ watch(rangeKey, () => { customIndex.value = -1 })
 const isLive = computed(() => rangeKey.value === 'live')
 </script>
 
+<template>
+  <div class="td-card">
+
+    <div class="td-card-header">
+      <div class="td-card-icon"><i class="ti ti-table"/></div>
+      <span class="td-card-title">
+        <span>Latest Update</span>
+        <span style="margin-left: 8px; font-size: 11px; color: var(--color-text-3); font-weight: normal;">
+          🕒 {{ allData[allData.length - 1]?.label || 'กำลังรอข้อมูล...' }} 
+          <span style="color: var(--color-green); margin-left: 4px;">(อัปเดตทุก 10 นาที)</span>
+        </span>
+      </span>
+
+      <div class="trt-range-group">
+        <button
+          v-for="r in RANGES"
+          :key="r.key"
+          class="trt-range-btn"
+          :class="{ active: rangeKey === r.key }"
+          @click="rangeKey = r.key"
+        >{{ r.label }}</button>
+      </div>
+    </div>
+
+    <div v-if="!isLive && timeOptions.length" class="trt-time-row">
+      <i class="ti ti-clock" style="font-size:13px;color:var(--color-text-3)"/>
+      <span style="font-size:11px;color:var(--color-text-3)">เลือกดูเวลา:</span>
+      <select
+        class="trt-select"
+        :value="customIndex"
+        @change="customIndex = Number(($event.target as HTMLSelectElement).value)"
+      >
+        <option :value="-1">— ทั้งหมด (ตาราง) —</option>
+        <option
+          v-for="opt in timeOptions"
+          :key="opt.index"
+          :value="opt.index"
+        >{{ opt.label }}</option>
+      </select>
+      <span class="trt-timestamp">
+        {{ customIndex >= 0 ? `🕐 ${displayRows[0]?.timestamp ?? timeOptions.find(o=>o.index===customIndex)?.label ?? '--:--'}` : `${historySlice.length} จุด (ทุก 10 นาที)` }}
+      </span>
+    </div>
+
+    <div v-if="isLive || customIndex >= 0" style="overflow-x:auto">
+      <table class="td-rt-table">
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Value</th>
+            <th>Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="row in displayRows"
+            :key="row.label"
+            :class="{ 'td-rt-changed': isLive && changedKeys.has(row.label) }"
+          >
+            <td>{{ row.label }}</td>
+            <td class="td-rt-val">{{ row.value !== undefined && row.value !== null ? row.value.toFixed(2) : '0.00' }}</td>
+            <td><span class="td-rt-unit">{{ row.unit }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-else-if="showHistory" style="overflow-x:auto">
+      <table class="trt-hist-table">
+        <thead>
+          <tr>
+            <th>Parameter / เวลา</th>
+            <th
+              v-for="pt in historySlice"
+              :key="pt.label"
+            >{{ pt.label }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="phase in ['A','B','C']" :key="`V${phase}`">
+            <td>Voltage {{ phase }} (V)</td>
+            <td v-for="pt in historySlice" :key="pt.label">
+              {{ (pt.voltage?.[phase] ?? 0).toFixed(1) }}
+            </td>
+          </tr>
+          <tr v-for="phase in ['A','B','C']" :key="`I${phase}`">
+            <td>Current {{ phase }} (A)</td>
+            <td v-for="pt in historySlice" :key="pt.label">
+              {{ (pt.current?.[phase] ?? 0).toFixed(1) }}
+            </td>
+          </tr>
+          <tr v-for="phase in ['A','B','C']" :key="`P${phase}`">
+            <td>Power {{ phase }} (kW)</td>
+            <td v-for="pt in historySlice" :key="pt.label">
+              {{ (pt.power?.[phase] ?? 0).toFixed(1) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div
+      v-else
+      style="padding:32px;text-align:center;color:var(--color-text-3);font-size:12px"
+    >
+      <i class="ti ti-database-off" style="font-size:20px;display:block;margin-bottom:6px"/>
+      ยังไม่มีข้อมูล — กดปุ่ม "โหลดข้อมูล" ในหน้า Chart
+    </div>
+
+  </div>
+</template>
+
 <style scoped>
 /* Card shell */
 .td-card {
@@ -112,7 +224,7 @@ const isLive = computed(() => rangeKey.value === 'live')
 }
 .td-card-icon {
   width:28px; height:28px; border-radius:6px;
-  background:#2563EB; color:white;
+  background:#5723e6; color:white;
   display:flex; align-items:center; justify-content:center;
 }
 .td-card-title { font-size:13px; font-weight:600; color:var(--color-text-1); }
@@ -189,121 +301,3 @@ const isLive = computed(() => rangeKey.value === 'live')
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 </style>
-
-<template>
-  <div class="td-card">
-
-    <!-- Header -->
-    <div class="td-card-header">
-      <div class="td-card-icon"><i class="ti ti-table"/></div>
-      <span class="td-card-title">
-        <span v-if="isLive" class="td-live-dot"/>
-        {{ isLive ? 'Realtime Data' : `History — ${RANGES.find(r=>r.key===rangeKey)?.label}` }}
-      </span>
-
-      <!-- Range pills -->
-      <div class="trt-range-group">
-        <button
-          v-for="r in RANGES"
-          :key="r.key"
-          class="trt-range-btn"
-          :class="{ active: rangeKey === r.key }"
-          @click="rangeKey = r.key"
-        >{{ r.label }}</button>
-      </div>
-    </div>
-
-    <!-- Time selector (เมื่อไม่ได้ดู live) -->
-    <div v-if="!isLive && timeOptions.length" class="trt-time-row">
-      <i class="ti ti-clock" style="font-size:13px;color:var(--color-text-3)"/>
-      <span style="font-size:11px;color:var(--color-text-3)">เลือกดูเวลา:</span>
-      <select
-        class="trt-select"
-        :value="customIndex"
-        @change="customIndex = Number(($event.target as HTMLSelectElement).value)"
-      >
-        <option :value="-1">— ทั้งหมด (ตาราง) —</option>
-        <option
-          v-for="opt in timeOptions"
-          :key="opt.index"
-          :value="opt.index"
-        >{{ opt.label }}</option>
-      </select>
-      <span class="trt-timestamp">
-        {{ customIndex >= 0 ? `🕐 ${displayRows[0]?.timestamp ?? timeOptions.find(o=>o.index===customIndex)?.label ?? '--:--'}` : `${historySlice.length} จุด (ทุก 10 นาที)` }}
-      </span>
-    </div>
-
-    <!-- ══ LIVE / เลือกจุดเดียว → ตารางแนวตั้ง ══ -->
-    <div v-if="isLive || customIndex >= 0" style="overflow-x:auto">
-      <table class="td-rt-table">
-        <thead>
-          <tr>
-            <th>Parameter</th>
-            <th>Value</th>
-            <th>Unit</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in displayRows"
-            :key="row.label"
-            :class="{ 'td-rt-changed': isLive && changedKeys.has(row.label) }"
-          >
-            <td>{{ row.label }}</td>
-            <td class="td-rt-val">{{ row.value.toFixed(3) }}</td>
-            <td><span class="td-rt-unit">{{ row.unit }}</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- ══ ดูหลาย ๆ จุด → ตารางแนวนอน (parameter × time) ══ -->
-    <div v-else-if="showHistory" style="overflow-x:auto">
-      <table class="trt-hist-table">
-        <thead>
-          <tr>
-            <th>Parameter / เวลา</th>
-            <th
-              v-for="pt in historySlice"
-              :key="pt.label"
-            >{{ pt.label }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Voltage -->
-          <tr v-for="phase in ['A','B','C']" :key="`V${phase}`">
-            <td>Voltage {{ phase }} (V)</td>
-            <td v-for="pt in historySlice" :key="pt.label">
-              {{ (pt.voltage?.[phase] ?? 0).toFixed(1) }}
-            </td>
-          </tr>
-          <!-- Current -->
-          <tr v-for="phase in ['A','B','C']" :key="`I${phase}`">
-            <td>Current {{ phase }} (A)</td>
-            <td v-for="pt in historySlice" :key="pt.label">
-              {{ (pt.current?.[phase] ?? 0).toFixed(1) }}
-            </td>
-          </tr>
-          <!-- Power -->
-          <tr v-for="phase in ['A','B','C']" :key="`P${phase}`">
-            <td>Power {{ phase }} (kW)</td>
-            <td v-for="pt in historySlice" :key="pt.label">
-              {{ (pt.power?.[phase] ?? 0).toFixed(1) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- No data -->
-    <div
-      v-else
-      style="padding:32px;text-align:center;color:var(--color-text-3);font-size:12px"
-    >
-      <i class="ti ti-database-off" style="font-size:20px;display:block;margin-bottom:6px"/>
-      ยังไม่มีข้อมูล — กดปุ่ม "โหลดข้อมูล" ในหน้า Chart
-    </div>
-
-  </div>
-</template>
