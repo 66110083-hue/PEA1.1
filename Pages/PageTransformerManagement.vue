@@ -26,8 +26,8 @@ const selectedTransformer = ref<typeof transformers.value[0] | null>(null)
  *    ให้เปลี่ยนเป็น `return String(row.id)` ได้เลย
  */
 function toTransformerId(row: typeof transformers.value[0]): string {
-  const padded = String(row.id).padStart(2, '0')
-  return `TF-M-${padded}`
+  // 🔥 ส่งรหัส 'M-01' ไปให้หน้า Detail ตรงๆ ได้เลยครับ โค้ดจะคลีนขึ้นมาก
+  return String(row.id)
 }
 
 function openDetail(row: typeof transformers.value[0]) {

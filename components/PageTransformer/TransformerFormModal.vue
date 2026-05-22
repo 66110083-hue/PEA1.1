@@ -24,11 +24,39 @@ const modeTitle = computed(() => ({
   view: 'View Transformer', delete: 'Delete Transformer',
 }[props.mode]))
 
+// 🔥 ฟังก์ชันพระเอก! อ่านไฟล์และบีบอัดขนาดรูปภาพอัตโนมัติก่อนเซฟ
 function handleFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file || file.size > 2 * 1024 * 1024) return
+  if (!file) return
+
   const reader = new FileReader()
-  reader.onload = ev => { props.form.imagePreview = ev.target?.result as string }
+  reader.onload = ev => {
+    const img = new Image()
+    img.onload = () => {
+      // 1. ใช้ Canvas สร้างกระดานวาดภาพเพื่อย่อขนาด
+      const canvas = document.createElement('canvas')
+      const MAX_WIDTH = 800 // บังคับกว้างสุด 800px
+      let scaleSize = 1
+      
+      if (img.width > MAX_WIDTH) {
+        scaleSize = MAX_WIDTH / img.width
+      }
+      
+      canvas.width = img.width * scaleSize
+      canvas.height = img.height * scaleSize
+
+      // 2. วาดรูปลงกระดาน
+      const ctx = canvas.getContext('2d')
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      // 3. แปลงกลับเป็นข้อความ Base64 ด้วยคุณภาพแค่ 70% (ไฟล์จะเบาหวิว ป้องกันเซิร์ฟเวอร์/ความจำเต็ม)
+      const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7)
+      
+      // 4. ส่งรูปเข้าตัวแปรให้หน้าจอแสดงผลพรีวิว
+      props.form.imagePreview = compressedBase64
+    }
+    img.src = ev.target?.result as string
+  }
   reader.readAsDataURL(file)
 }
 

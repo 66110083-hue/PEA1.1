@@ -149,7 +149,15 @@ const gauges = computed(() => {
         </div>
         <div class="td-card-body">
           <div class="td-hero">
-            <div class="td-img-box">🔌</div>
+           <div class="td-img-box">
+  <img 
+    v-if="tfInfo?.imagePreview" 
+    :src="tfInfo.imagePreview" 
+    class="td-uploaded-img" 
+    alt="Transformer Image"
+  />
+  <span v-else>🔌</span>
+</div>
             <div class="td-info-grid">
               <div class="td-info-item"><span class="td-info-label">Device ID</span><span class="td-info-value" style="font-size:10px">{{ tfInfo.deviceId }}</span></div>
               <div class="td-info-item"><span class="td-info-label">PEA No.</span><span class="td-info-value">{{ tfInfo.peaNo }}</span></div>
@@ -293,7 +301,27 @@ const gauges = computed(() => {
 
 /* Transformer info */
 .td-hero { display:flex; gap:20px; padding-bottom:16px; border-bottom:1px solid var(--color-border); margin-bottom:16px; }
-.td-img-box { width:110px; height:110px; border-radius:8px; background:var(--color-surface-2); border:1px solid var(--color-border); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:36px; }
+.td-img-box { 
+  width: 120px;          /* ล็อคความกว้าง */
+  height: 120px;         /* ล็อคความสูง */
+  min-width: 120px;      /* บังคับไม่ให้กล่องโดนบีบ */
+  flex-shrink: 0;        /* ห้ามย่อขนาดเด็ดขาด */
+  border-radius: 8px; 
+  background: var(--color-surface-2); 
+  border: 1px solid var(--color-border); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  font-size: 36px; 
+  overflow: hidden !important; /* 👈 หัวใจสำคัญ: ตัดรูปส่วนที่ล้นกล่องทิ้งไป */
+  position: relative;
+}
+.td-uploaded-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important; /* 👈 ให้รูปซูมพอดีกล่อง สัดส่วนไม่เบี้ยว */
+  display: block;
+}
 .td-info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px 16px; flex:1; }
 .td-info-item { display:flex; flex-direction:column; gap:2px; }
 .td-info-label { font-size:10px; color:var(--color-text-3); text-transform:uppercase; letter-spacing:0.05em; }
