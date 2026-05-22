@@ -2,7 +2,7 @@
 import { computed, watch } from 'vue'
 import { useDashboard } from '~/composables/useDashboard'
 import { useTransformer, type Transformer } from '~/composables/useTransformer'
-import TransformerRealtimeTable from '/home/supanat01/PEA-main/components/PageTransformer/TransformerRealtimeTable.vue'
+import TransformerRealtimeTable from '~/components/PageTransformer/TransformerRealtimeTable.vue'
 // ── Props ────────────────────────────────────────────────
 const props = defineProps<{
   transformerId: string   // รับค่าคีย์สลักเชื่อมเข้ามา (เช่น 'M-01', 'TF-M-01' หรือก้อน Object)

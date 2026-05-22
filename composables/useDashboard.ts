@@ -48,7 +48,8 @@ export function useDashboard(options: DashboardOptions = {}) {
   )
 
   // ─────────────────────────────────────────────
-  // handleFilter
+  // handleFilter async function ที่ใช้ดึงข้อมูลตามตัวกรองต่างๆ (เช่น transformerId) และอัพเดต chart
+  // async คือฟังก์ชันที่ทำงานแบบอะซิงโครนัส สามารถใช้ await เพื่อรอผลลัพธ์จากการเรียก API หรือการประมวลผลที่ใช้เวลานานได้
   // ─────────────────────────────────────────────
   const handleFilter = async (
     _filter: Record<string, unknown> = {},
@@ -65,7 +66,9 @@ export function useDashboard(options: DashboardOptions = {}) {
     // ใช้ realtime เป็นต้นทาง
     seedFromRealtime()
 
+// await new Promise(r => setTimeout(r, 600)) --- IGNORE --- เพื่อจำลอง delay ในการโหลดข้อมูลจริงจาก API
     await new Promise(r => setTimeout(r, 600))
+
 
     // TODO:
     // await $fetch(`/api/transformers/${selectedTransformerId.value}/history`)
@@ -117,9 +120,8 @@ export function useDashboard(options: DashboardOptions = {}) {
 
     isLoading.value = false
     hasData.value   = true
-
+// await nextTick() --- IGNORE --- เพื่อรอให้ DOM อัพเดตก่อนที่จะเรียก init() และ refreshChart() ซึ่งจะใช้ข้อมูลใหม่ที่เพิ่งโหลดมาแสดงผลใน chart ได้ถูกต้อง
     await nextTick()
-
     init()
     refreshChart()
   }
@@ -195,5 +197,6 @@ export function useDashboard(options: DashboardOptions = {}) {
     realtimeSnapshot,
 
     handleFilter,
+    
   }
 }
