@@ -1,362 +1,172 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { allAlerts } from '@/composables/useSiteData'
+import type { Alert } from '@/composables/useSiteData'
 
-import {
-  allAlerts,
-  alertColor,
-} from '@/composables/useSiteData'
+import AlertsHeader      from '@/components/PageAlerts/AlertsHeader.vue'
+import AlertsFilterChips from '@/components/PageAlerts/AlertsFilterChips.vue'
+import AlertsToolbar     from '@/components/PageAlerts/AlertsToolbar.vue'
+import AlertsTable       from '@/components/PageAlerts/AlertsTable.vue'
+import AlertDetailModal  from '@/components/PageAlerts/AlertDetailModal.vue'
+// ── Filter state ───────────────────────────────────────────
+const levelFilter  = ref<'all' | 'alert' | 'warning' | 'info'>('all')
+const searchQuery  = ref('')
+const activeStatus = ref<'Active' | 'Clear'>('Active')
+const ackFilter    = ref<'Unacknowledged' | 'Acknowledged'>('Unacknowledged')
 
-const activeFilter = ref<
-  'all' | 'alert' | 'warning' | 'info'
->('all')
+// ── Local mutable state ────────────────────────────────────
+const acknowledgedIds = ref<Set<string>>(new Set())
+const clearedIds      = ref<Set<string>>(new Set())
 
-const filteredAlerts = computed(() => {
-
-  if (activeFilter.value === 'all') {
-    return allAlerts
-  }
-
-  return allAlerts.filter(
-    a => a.level === activeFilter.value
-  )
-
-})
+// ── Filter chips data ──────────────────────────────────────
+const filterTabs = computed(() => [
+  { key: 'all'     as const, label: 'ทั้งหมด', count: allAlerts.length },
+  { key: 'alert'   as const, label: 'วิกฤต',   count: allAlerts.filter(a => a.level === 'alert').length },
+  { key: 'warning' as const, label: 'ออฟไลน์', count: allAlerts.filter(a => a.level === 'warning').length },
+  { key: 'info'    as const, label: 'ปกติ',    count: allAlerts.filter(a => a.level === 'info').length },
+])
 
 const criticalCount = computed(() =>
-  allAlerts.filter(
-    a => a.level === 'alert'
-  ).length
+  allAlerts.filter(a => a.level === 'alert').length
 )
 
-const filters = computed(() => [
+// ── Filtered list ──────────────────────────────────────────
+const filteredAlerts = computed(() => {
+  let list = [...allAlerts]
 
-  {
-    key: 'all' as const,
-    label: 'ทั้งหมด',
-    count: allAlerts.length,
-  },
+  if (levelFilter.value !== 'all')
+    list = list.filter(a => a.level === levelFilter.value)
 
-  {
-    key: 'alert' as const,
-    label: 'วิกฤต',
-    count: allAlerts.filter(
-      a => a.level === 'alert'
-    ).length,
-  },
+  if (activeStatus.value === 'Clear')
+    list = list.filter(a =>  clearedIds.value.has(a.id))
+  else
+    list = list.filter(a => !clearedIds.value.has(a.id))
 
-  {
-    key: 'warning' as const,
-    label: 'ออฟไลน์',
-    count: allAlerts.filter(
-      a => a.level === 'warning'
-    ).length,
-  },
+  if (ackFilter.value === 'Acknowledged')
+    list = list.filter(a =>  acknowledgedIds.value.has(a.id))
+  else
+    list = list.filter(a => !acknowledgedIds.value.has(a.id))
 
-  {
-    key: 'info' as const,
-    label: 'ปกติ',
-    count: allAlerts.filter(
-      a => a.level === 'info'
-    ).length,
-  },
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(a =>
+      a.siteId.toLowerCase().includes(q) ||
+      a.title.toLowerCase().includes(q) ||
+      a.province.toLowerCase().includes(q)
+    )
+  }
 
-])
+  return list
+})
+
+// ── Device Type mock map ───────────────────────────────────
+const deviceTypeMap: Record<string, string> = {}
+allAlerts.forEach(a => {
+  const n = parseInt(a.siteId.replace('M-', ''))
+  const types = ['PV 1P PST', 'EV 1P PST', 'TRANSFORMER 160 PST', 'PV 3P PST', 'EV 3P PST']
+  deviceTypeMap[a.id] = types[n % types.length]
+})
+
+// ── Actions ────────────────────────────────────────────────
+function clearAll() {
+  allAlerts.forEach(a => clearedIds.value.add(a.id))
+}
+
+function handleDelete(id: string) {
+  clearedIds.value.add(id)
+}
+
+// ── Modal state ────────────────────────────────────────────
+const selectedAlert = ref<Alert | null>(null)
+
+function openDetail(alert: Alert)  { selectedAlert.value = alert }
+function closeModal()              { selectedAlert.value = null  }
+
+function handleAcknowledge(id: string) {
+  acknowledgedIds.value.add(id)
+  closeModal()
+}
+
+function handleClear(id: string) {
+  clearedIds.value.add(id)
+  closeModal()
+}
+
+// ── Export CSV ─────────────────────────────────────────────
+function handleExport() {
+  const header = 'Timestamp,Severity,PEA Device No.,Device Type,Province,Event,Assignee,Status'
+  const rows = filteredAlerts.value.map(a => [
+    a.time,
+    a.level === 'alert' ? 'CRITICAL' : a.level === 'warning' ? 'MAJOR' : 'NORMAL',
+    a.siteId,
+    deviceTypeMap[a.id] ?? '',
+    a.province,
+    `"${a.title}"`,
+    'Unassigned',
+    acknowledgedIds.value.has(a.id) ? 'Acknowledged' : 'Unacknowledged',
+  ].join(','))
+
+  const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' })
+  const url  = URL.createObjectURL(blob)
+  const el   = document.createElement('a')
+  el.href     = url
+  el.download = 'alerts.csv'
+  el.click()
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
-
-  <div class="alert-card">
+  <div class="alerts-page">
 
     <!-- Header -->
-    <div class="alert-header">
+    <AlertsHeader :criticalCount="criticalCount" />
 
-      <div class="header-left">
-        <i class="ti ti-bell bell-icon"/>
-        <span>การแจ้งเตือน</span>
-      </div>
+    <!-- Filter chips -->
+    <AlertsFilterChips
+      v-model="levelFilter"
+      :tabs="filterTabs"
+    />
 
-      <div class="critical-badge">
-        {{ criticalCount }} รายการวิกฤต
-      </div>
+    <!-- Toolbar -->
+    <AlertsToolbar
+      v-model:searchQuery="searchQuery"
+      v-model:activeStatus="activeStatus"
+      v-model:ackFilter="ackFilter"
+      @clearAll="clearAll"
+      @export="handleExport"
+    />
 
-    </div>
+    <!-- Table -->
+    <AlertsTable
+      :alerts="filteredAlerts"
+      :acknowledgedIds="acknowledgedIds"
+      :deviceTypeMap="deviceTypeMap"
+      @select="openDetail"
+      @delete="handleDelete"
+    />
 
-    <!-- Filters -->
-    <div class="filter-row">
-
-      <button
-        v-for="f in filters"
-        :key="f.key"
-        class="filter-btn"
-        :class="{
-          active: activeFilter === f.key
-        }"
-        @click="activeFilter = f.key"
-      >
-        {{ f.label }}
-        ({{ f.count }})
-      </button>
-
-    </div>
-
-    <!-- Alert List -->
-    <div
-      v-for="item in filteredAlerts"
-      :key="item.id"
-      class="alert-item"
-    >
-
-      <!-- Status Dot -->
-      <div
-        class="alert-dot"
-        :style="{
-          backgroundColor:
-            alertColor[item.level]
-        }"
-      />
-
-      <!-- Content -->
-      <div class="alert-content">
-
-        <div class="alert-title">
-          {{ item.title }}
-        </div>
-
-        <div class="alert-sub">
-          {{ item.sub }}
-        </div>
-
-      </div>
-
-      <!-- Time -->
-      <div class="alert-time">
-        {{ item.time }}
-      </div>
-
-    </div>
+    <!-- Detail Modal -->
+    <AlertDetailModal
+      :alert="selectedAlert"
+      :isAcknowledged="selectedAlert ? acknowledgedIds.has(selectedAlert.id) : false"
+      @close="closeModal"
+      @acknowledge="handleAcknowledge"
+      @clear="handleClear"
+    />
 
   </div>
-
 </template>
 
 <style scoped>
-
-/* =========================
-   Card
-========================= */
-
-.alert-card {
-  background: #ffffff;
-
-  border-radius: 16px;
-
-  border: 1px solid var(--color-border);
-
-  padding: 18px;
-
-  font-family: var(--font-sans);
-
-  box-shadow:
-    0 1px 2px rgba(16,24,40,.04),
-    0 1px 3px rgba(16,24,40,.06);
+.alerts-page {
+  padding: 24px;
+  font-family: var(--font-sans, 'Sarabun', sans-serif);
+  background: var(--color-bg, #f9fafb);
+  min-height: 100vh;
 }
-
-/* =========================
-   Header
-========================= */
-
-.alert-header {
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: center;
-
-  margin-bottom: 18px;
-}
-
-.header-left {
-  display: flex;
-
-  align-items: center;
-
-  gap: 10px;
-
-  font-size: 14px;
-
-  font-weight: 700;
-
-  letter-spacing: -.2px;
-
-  color: var(--color-text-1);
-}
-
-.bell-icon {
-  font-size: 16px;
-
-  color: #f59e0b;
-}
-
-.critical-badge {
-  background: #fef2f2;
-
-  color: #dc2626;
-
-  padding: 6px 12px;
-
-  border-radius: 999px;
-
-  font-size: 11px;
-
-  font-weight: 600;
-
-  border: 1px solid #fecaca;
-}
-
-/* =========================
-   Filters
-========================= */
-
-.filter-row {
-  display: flex;
-
-  gap: 8px;
-
-  margin-bottom: 12px;
-
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  height: 36px;
-
-  padding: 0 14px;
-
-  border-radius: 10px;
-
-  border: 1px solid #dbe0e6;
-
-  background: #ffffff;
-
-  color: var(--color-text-2);
-
-  cursor: pointer;
-
-  font-size: 12px;
-
-  font-weight: 500;
-
-  font-family: var(--font-sans);
-
-  transition: all .15s ease;
-}
-
-.filter-btn:hover {
-  opacity: .85;
-}
-
-.filter-btn.active {
-  background: #2563eb;
-
-  border-color: #2563eb;
-
-  color: white;
-}
-
-/* =========================
-   Alert Item
-========================= */
-
-.alert-item {
-  display: flex;
-
-  align-items: center;
-
-  gap: 12px;
-
-  min-height: 72px;
-
-  padding: 12px 6px;
-
-  border-top: 1px solid var(--color-border);
-
-  transition: background .15s ease;
-}
-
-.alert-item:hover {
-  background: var(--color-bg);
-}
-
-.alert-dot {
-  width: 10px;
-
-  height: 10px;
-
-  border-radius: 50%;
-
-  flex-shrink: 0;
-}
-
-.alert-content {
-  flex: 1;
-}
-
-.alert-title {
-  font-size: 13px;
-
-  font-weight: 600;
-
-  line-height: 1.3;
-
-  color: var(--color-text-1);
-
-  margin-bottom: 3px;
-}
-
-.alert-sub {
-  font-size: 12px;
-
-  color: var(--color-text-3);
-
-  line-height: 1.4;
-}
-
-.alert-time {
-  font-size: 11px;
-
-  font-weight: 500;
-
-  color: var(--color-text-3);
-
-  white-space: nowrap;
-
-  margin-left: 12px;
-}
-
-/* =========================
-   Mobile
-========================= */
 
 @media (max-width: 768px) {
-
-  .alert-header {
-    flex-direction: column;
-
-    align-items: flex-start;
-
-    gap: 12px;
-  }
-
-  .alert-item {
-    flex-wrap: wrap;
-  }
-
-  .alert-time {
-    width: 100%;
-
-    margin-left: 22px;
-  }
-
+  .alerts-page { padding: 16px; }
 }
-
 </style>

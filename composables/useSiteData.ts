@@ -88,7 +88,6 @@ export function useSiteData() {
   return { allSites, provinces, districtsByProvince, getSitesByDistrict, getSitesByProvince }
 }
 
-// ── Alerts ────────────────────────────────────────────────
 
 export interface Alert {
   id: string
@@ -127,10 +126,6 @@ export const allAlerts: Alert[] = allSites.map((s) => {
       :                          'อัปเดตล่าสุด',
   }
 })
-
-// ══════════════════════════════════════════════════════════
-// TRANSFORMER  (linked to Site via siteId)
-// ══════════════════════════════════════════════════════════
 
 export type TransformerStatus = 'online' | 'offline'
 

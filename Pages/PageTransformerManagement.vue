@@ -18,13 +18,7 @@ const {
 const showDetail          = ref(false)
 const selectedTransformer = ref<typeof transformers.value[0] | null>(null)
 
-/**
- * ★ แปลง id (number) จาก useTransformer → "TF-M-XX" (string)
- *    ที่ TransformerDetail + siteData ใช้
- *
- *    ถ้าในอนาคต useTransformer ดึงจาก API จริงและ id ตรงกับ siteData แล้ว
- *    ให้เปลี่ยนเป็น `return String(row.id)` ได้เลย
- */
+
 function toTransformerId(row: typeof transformers.value[0]): string {
   // 🔥 ส่งรหัส 'M-01' ไปให้หน้า Detail ตรงๆ ได้เลยครับ โค้ดจะคลีนขึ้นมาก
   return String(row.id)
@@ -109,11 +103,7 @@ function backToList() {
         </button>
       </div>
 
-      <!--
-        ★ จุดที่แก้ (บรรทัดเดียว):
-           เดิม  :transformer="selectedTransformer"
-           ใหม่  :transformer-id="toTransformerId(selectedTransformer)"
-      -->
+     
       <TransformerDetail :transformer-id="toTransformerId(selectedTransformer)" />
 
     </template>
