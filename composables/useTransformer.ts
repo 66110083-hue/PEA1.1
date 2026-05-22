@@ -29,7 +29,7 @@ const initialTransformers: Transformer[] = allSites.map((site, index) => {
     id:           site.id, 
     status:       site.status === 'offline' ? 'offline' : 'online',
     deviceId:     `4A5G0PV1Y23E0${index + 1}B09N`,
-    peaNo:        `${site.id}-TR#0${index + 1}`,
+    peaNo:        site.id,
     brand:        site.name, 
     rated:        index === 3 ? 315 : index === 4 ? 250 : index === 6 ? 400 : 160,
     ratedCT:      index === 3 ? 400 : index === 4 ? 300 : index === 6 ? 500 : 250,
@@ -82,6 +82,11 @@ export function useTransformer() {
         r.id.toLowerCase().includes(searchQuery.value.toLowerCase())
       )
     if (statusFilter.value) d = d.filter(r => r.status === statusFilter.value)
+
+      d = d.sort((a, b) => {
+      // ใช้ localeCompare พร้อม { numeric: true } เพื่อให้มันเรียงเลข M-01, M-02, M-10 ได้ฉลาดขึ้น
+      return a.peaNo.localeCompare(b.peaNo, 'en', { numeric: true })
+    })
     return d
   })
 
@@ -96,7 +101,6 @@ export function useTransformer() {
   function closeModal() { showModal.value = false; editingId.value = null; }
 
   function validate(): string {
-    if (modalMode.value === 'add' && !form.value.id) return 'กรุณาระบุหรือเลือก Site ID'
     if (!form.value.peaNo)    return 'กรุณากรอก PEA No. Transformer'
     if (!form.value.deviceId) return 'กรุณากรอก Device ID'
     if (!form.value.brand)    return 'กรุณากรอก Transformer Brand'
@@ -107,13 +111,20 @@ export function useTransformer() {
 
   function saveForm() {
     const err = validate(); if (err) { formError.value = err; return }
+    if (modalMode.value === 'add' && !form.value.id) {
+      form.value.id = form.value.peaNo
+    }
     const linkedSite = allSites.find(s => s.id === form.value.id)
     if (linkedSite) {
       form.value.province = linkedSite.province; form.value.location = linkedSite.name;
       form.value.lat = linkedSite.lat; form.value.long = linkedSite.lng;
     }
     if (modalMode.value === 'add') {
-      if (transformers.value.some(r => r.id === form.value.id)) { formError.value = 'Site ID นี้มีหม้อแปลงติดตั้งอยู่แล้ว'; return }
+      // เช็กความซ้ำซ้อนจาก PEA No แทน
+      if (transformers.value.some(r => r.peaNo === form.value.peaNo)) { 
+        formError.value = 'PEA No. นี้มีในระบบแล้ว'; 
+        return 
+      }
       transformers.value.push({ ...form.value })
     } else {
       const idx = transformers.value.findIndex(r => r.id === editingId.value)
