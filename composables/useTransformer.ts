@@ -1,12 +1,18 @@
 // 📂 composables/useTransformer.ts
 
-import { ref, computed, watch } from 'vue' // 🔥 1. อย่าลืมนำเข้า watch มาด้วย
+import { ref, computed, watch } from 'vue' 
 import { useSiteData, type Site } from '~/composables/useSiteData'
 
 export interface Transformer {
   id:           string 
   status:       'online' | 'offline'
   deviceId:     string; peaNo: string; brand: string; commType: string;
+  // 🟢 เพิ่มตัวแปรใหม่ 4 ตัวที่นี่
+  model:        string; 
+  serialNumber: string; 
+  feederNo:     string; 
+  description:  string;
+  
   rated: number; ratedCT: number; ipSim: string; maxLoad: number; maxFeedIn: number;
   province: string; location: string; lat: number; long: number; installDate: string; imagePreview: string;
 }
@@ -15,6 +21,9 @@ export type ModalMode = 'add' | 'edit' | 'view' | 'delete'
 
 export const emptyForm = (): Transformer => ({
   id: '', status: 'online', deviceId: '', peaNo: '', brand: '',
+  // 🟢 อย่าลืมใส่ค่าเริ่มต้นให้ตัวแปรใหม่ตอนกดปุ่ม "Add"
+  model: '', serialNumber: '', feederNo: '', description: '',
+  
   commType: '', rated: 160, ratedCT: 250, ipSim: '', maxLoad: 80, maxFeedIn: 15,
   province: '', location: '', lat: 0, long: 0, installDate: '', imagePreview: '',
 })
@@ -31,6 +40,12 @@ const initialTransformers: Transformer[] = allSites.map((site, index) => {
     deviceId:     `4A5G0PV1Y23E0${index + 1}B09N`,
     peaNo:        site.id,
     brand:        site.name, 
+    // 🟢 จำลองข้อมูลเบื้องต้นให้ตัวแปรใหม่ เพื่อไม่ให้ตารางพัง
+    model:        'TX-2000',
+    serialNumber: `SN-${1000 + index}`,
+    feederNo:     index % 2 === 0 ? 'Feeder 01' : 'Feeder 02',
+    description:  '',
+
     rated:        index === 3 ? 315 : index === 4 ? 250 : index === 6 ? 400 : 160,
     ratedCT:      index === 3 ? 400 : index === 4 ? 300 : index === 6 ? 500 : 250,
     commType:     comms[index % comms.length],
@@ -44,14 +59,13 @@ const initialTransformers: Transformer[] = allSites.map((site, index) => {
 // ตัวแปรส่วนกลาง
 const globalTransformers = ref<Transformer[]>(initialTransformers)
 
-// 🔥 2. ตัวแปรเช็กว่าโหลดข้อมูลจาก localStorage หรือยัง (กันโหลดซ้ำ)
+// ตัวแปรเช็กว่าโหลดข้อมูลจาก localStorage หรือยัง (กันโหลดซ้ำ)
 let isInitialized = false
 
 export function useTransformer() {
   const transformers = globalTransformers
 
-  // 🔥 3. ระบบเซฟ/โหลดข้อมูลถาวรด้วย Local Storage
-  // ใช้ typeof window !== 'undefined' เพื่อกัน Error ตอน Nuxt ทำ SSR ฝั่งเซิร์ฟเวอร์
+  // ระบบเซฟ/โหลดข้อมูลถาวรด้วย Local Storage
   if (typeof window !== 'undefined' && !isInitialized) {
     
     // โหลดข้อมูลเก่าที่เคยเซฟไว้ในเบราว์เซอร์
@@ -68,7 +82,7 @@ export function useTransformer() {
     // จับตาดูการเปลี่ยนแปลง: ถ้ามีการ แก้ไข/เพิ่ม/ลบ/อัปโหลดรูป ให้เซฟลงเบราว์เซอร์ทันที
     watch(transformers, (newVal) => {
       localStorage.setItem('pea_transformers_data', JSON.stringify(newVal))
-    }, { deep: true }) // deep: true คือให้เช็กเจาะลึกเข้าไปถึงฟิลด์ข้างใน object ด้วย
+    }, { deep: true })
   }
 
   const searchQuery = ref(''); const statusFilter = ref(''); const page = ref(1); const perPage = 10
@@ -84,7 +98,6 @@ export function useTransformer() {
     if (statusFilter.value) d = d.filter(r => r.status === statusFilter.value)
 
       d = d.sort((a, b) => {
-      // ใช้ localeCompare พร้อม { numeric: true } เพื่อให้มันเรียงเลข M-01, M-02, M-10 ได้ฉลาดขึ้น
       return a.peaNo.localeCompare(b.peaNo, 'en', { numeric: true })
     })
     return d
@@ -101,11 +114,17 @@ export function useTransformer() {
   function closeModal() { showModal.value = false; editingId.value = null; }
 
   function validate(): string {
-    if (!form.value.peaNo)    return 'กรุณากรอก PEA No. Transformer'
-    if (!form.value.deviceId) return 'กรุณากรอก Device ID'
-    if (!form.value.brand)    return 'กรุณากรอก Transformer Brand'
-    if (!form.value.commType) return 'กรุณาเลือก Communication Type'
-    if (!form.value.province) return 'กรุณาเลือก Province'
+    // ลบการเช็คฝั่งซ้ายออก (หรือจะเช็คแค่บางตัวที่จำเป็นจริงๆ ก็ได้)
+    // if (!form.value.peaNo)    return 'กรุณากรอก PEA No. Transformer'
+    // if (!form.value.deviceId) return 'กรุณากรอก Device ID'
+    // if (!form.value.brand)    return 'กรุณากรอก Transformer Brand'
+    // if (!form.value.commType) return 'กรุณาเลือก Communication Type'
+    
+    // เปลี่ยนมาเช็คฝั่งขวาแทน ตามดอกจันสีแดง
+    if (!form.value.feederNo) return 'กรุณาเลือก Feeder No.'
+    if (!form.value.lat) return 'กรุณากรอกพิกัด Latitude'
+    if (!form.value.long) return 'กรุณากรอกพิกัด Longitude'
+    
     return ''
   }
 
@@ -120,7 +139,6 @@ export function useTransformer() {
       form.value.lat = linkedSite.lat; form.value.long = linkedSite.lng;
     }
     if (modalMode.value === 'add') {
-      // เช็กความซ้ำซ้อนจาก PEA No แทน
       if (transformers.value.some(r => r.peaNo === form.value.peaNo)) { 
         formError.value = 'PEA No. นี้มีในระบบแล้ว'; 
         return 

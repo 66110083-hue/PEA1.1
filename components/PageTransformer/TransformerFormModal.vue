@@ -24,7 +24,7 @@ const modeTitle = computed(() => ({
   view: 'View Transformer', delete: 'Delete Transformer',
 }[props.mode]))
 
-// 🔥 ฟังก์ชันพระเอก! อ่านไฟล์และบีบอัดขนาดรูปภาพอัตโนมัติก่อนเซฟ
+// ฟังก์ชันย่อขนาดรูปภาพ (เหมือนเดิม)
 function handleFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
@@ -33,26 +33,19 @@ function handleFile(e: Event) {
   reader.onload = ev => {
     const img = new Image()
     img.onload = () => {
-      // 1. ใช้ Canvas สร้างกระดานวาดภาพเพื่อย่อขนาด
       const canvas = document.createElement('canvas')
-      const MAX_WIDTH = 800 // บังคับกว้างสุด 800px
+      const MAX_WIDTH = 800
       let scaleSize = 1
       
-      if (img.width > MAX_WIDTH) {
-        scaleSize = MAX_WIDTH / img.width
-      }
+      if (img.width > MAX_WIDTH) scaleSize = MAX_WIDTH / img.width
       
       canvas.width = img.width * scaleSize
       canvas.height = img.height * scaleSize
 
-      // 2. วาดรูปลงกระดาน
       const ctx = canvas.getContext('2d')
       ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-
-      // 3. แปลงกลับเป็นข้อความ Base64 ด้วยคุณภาพแค่ 70% (ไฟล์จะเบาหวิว ป้องกันเซิร์ฟเวอร์/ความจำเต็ม)
       const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7)
       
-      // 4. ส่งรูปเข้าตัวแปรให้หน้าจอแสดงผลพรีวิว
       props.form.imagePreview = compressedBase64
     }
     img.src = ev.target?.result as string
@@ -69,201 +62,301 @@ function handleDrop(e: DragEvent) {
 <template>
   <Teleport to="body">
     <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
-      <div class="modal-box">
-
-        <!-- Header -->
-        <div class="modal-header">
-          <div style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600">
-            <i :class="`ti ${modeIcon}`" :style="{ color: mode === 'delete' ? 'var(--color-red)' : 'var(--color-green)' }"/>
-            {{ modeTitle }}
+      <div class="sg-form-card">
+        
+        <div class="sg-header">
+          <div class="sg-breadcrumb">
+            <span class="text-muted">Asset Management / </span>
+            <span class="sg-title">{{ modeTitle }}</span>
           </div>
-          <button class="modal-close" @click="$emit('close')">✕</button>
-        </div>
-
-        <!-- Delete confirm -->
-        <div v-if="mode === 'delete'" style="padding:24px;text-align:center">
-          <i class="ti ti-alert-triangle" style="font-size:40px;color:var(--color-red);display:block;margin-bottom:12px"/>
-          <div style="font-size:14px;margin-bottom:6px">ยืนยันการลบ?</div>
-          <div style="font-size:13px;color:var(--color-text-2);margin-bottom:20px">
-            <strong>{{ form.peaNo }}</strong> — {{ form.brand }}
-          </div>
-          <div style="display:flex;gap:8px;justify-content:center">
-            <button class="tm-btn tm-btn-outline" @click="$emit('close')">ยกเลิก</button>
-            <button class="tm-btn" style="background:var(--color-red);color:white;border:none" @click="$emit('delete')">ลบ</button>
-          </div>
-        </div>
-
-        <!-- Form -->
-        <div v-else class="modal-body">
-
-          <div class="form-section-label">ข้อมูลหม้อแปลง</div>
-          <div class="form-grid">
-            <div class="form-field">
-              <label class="form-label">PEA No. Transformer *</label>
-              <input v-model="form.peaNo" :disabled="readonly" class="form-input" placeholder="PEA No. Transformer"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Device ID *</label>
-              <input v-model="form.deviceId" :disabled="readonly" class="form-input" placeholder="Device ID (จาก MQTT)"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Transformer Brand *</label>
-              <input v-model="form.brand" :disabled="readonly" class="form-input" placeholder="Brand"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Communication Type *</label>
-              <select v-model="form.commType" :disabled="readonly" class="form-input">
-                <option value="">Select Communication Type</option>
-                <option v-for="c in commTypes" :key="c">{{ c }}</option>
-              </select>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Transformer Rated (kVA) *</label>
-              <input v-model.number="form.rated" :disabled="readonly" class="form-input" type="number"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Rated CT *</label>
-              <input v-model.number="form.ratedCT" :disabled="readonly" class="form-input" type="number"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">IP Sim Card *</label>
-              <input v-model="form.ipSim" :disabled="readonly" class="form-input" placeholder="IP Simcard"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Status</label>
-              <select v-model="form.status" :disabled="readonly" class="form-input">
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-section-label" style="margin-top:16px">การตั้งค่า</div>
-          <div class="form-grid">
-            <div class="form-field">
-              <label class="form-label">Max Load (%) Normal Load + EV *</label>
-              <input v-model.number="form.maxLoad" :disabled="readonly" class="form-input" type="number"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Max Feed-In Power (%) for PV *</label>
-              <input v-model.number="form.maxFeedIn" :disabled="readonly" class="form-input" type="number"/>
-            </div>
-          </div>
-
-          <div class="form-section-label" style="margin-top:16px">ที่ตั้ง</div>
-          <div class="form-grid">
-            <div class="form-field">
-              <label class="form-label">Province *</label>
-              <select v-model="form.province" :disabled="readonly" class="form-input">
-                <option value="">Select Province</option>
-                <option v-for="p in provinces" :key="p">{{ p }}</option>
-              </select>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Install Location</label>
-              <input v-model="form.location" :disabled="readonly" class="form-input" placeholder="Install Location"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Latitude</label>
-              <input v-model.number="form.lat" :disabled="readonly" class="form-input" type="number" step="0.000001"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Longitude</label>
-              <input v-model.number="form.long" :disabled="readonly" class="form-input" type="number" step="0.000001"/>
-            </div>
-            <div class="form-field">
-              <label class="form-label">Install Date</label>
-              <input v-model="form.installDate" :disabled="readonly" class="form-input" type="date"/>
-            </div>
-          </div>
-
-          <div class="form-section-label" style="margin-top:16px">รูปภาพหม้อแปลง</div>
-          <div v-if="!readonly" class="upload-area" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="handleDrop">
-            <input ref="fileInput" type="file" accept=".jpg,.jpeg,.png,.webp" style="display:none" @change="handleFile"/>
-            <div v-if="!form.imagePreview">
-              <i class="ti ti-cloud-upload" style="font-size:28px;color:var(--color-text-3);display:block;margin-bottom:8px"/>
-              <div style="font-size:12px;color:var(--color-text-2)">Choose an image or drag & drop</div>
-              <div style="font-size:11px;color:var(--color-text-3);margin-top:4px">JPEG, JPG, PNG — Max 2MB</div>
-            </div>
-            <div v-else style="position:relative;display:inline-block">
-              <img :src="form.imagePreview" style="max-height:100px;border-radius:6px"/>
-              <button @click.stop="form.imagePreview = ''"
-                style="position:absolute;top:-8px;right:-8px;background:var(--color-red);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px">✕</button>
-            </div>
-          </div>
-          <img v-else-if="form.imagePreview" :src="form.imagePreview" style="max-height:80px;border-radius:6px"/>
-          <div v-else style="font-size:12px;color:var(--color-text-3)">ไม่มีรูปภาพ</div>
-
-          <!-- Error -->
-          <div v-if="error" style="margin-top:12px;padding:8px 12px;background:var(--color-red-bg);border-radius:var(--radius-md);font-size:12px;color:var(--color-red-text)">
-            <i class="ti ti-alert-circle"/> {{ error }}
-          </div>
-
-          <!-- Footer -->
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--color-border)">
-            <button class="tm-btn tm-btn-outline" @click="$emit('close')">
-              {{ readonly ? 'ปิด' : 'ยกเลิก' }}
-            </button>
-            <button v-if="!readonly" class="tm-btn tm-btn-green" @click="$emit('save')">
-              <i class="ti ti-device-floppy"/> บันทึก
+          
+          <div class="sg-actions">
+            <button class="sg-btn sg-btn-outline" @click="$emit('close')">Cancel</button>
+            <button v-if="!readonly" class="sg-btn sg-btn-primary" @click="$emit('save')">
+              <i class="ti ti-device-floppy"></i> Save
             </button>
           </div>
-
         </div>
+
+        <div class="sg-divider-gold"></div>
+
+       <div class="sg-body-grid">
+          
+          <div class="sg-col">
+            <h3 class="sg-section-title">Information</h3>
+            
+            <div class="sg-input-grid">
+              <div class="sg-field">
+                <label>Device Name (PEA No.)</label>
+                <input v-model="form.peaNo" :disabled="readonly" placeholder="Name"/>
+              </div>
+              <div class="sg-field">
+                <label>State</label>
+                <select v-model="form.status" :disabled="readonly">
+                  <option value="online">Online</option>
+                  <option value="offline">Offline</option>
+                </select>
+              </div>
+
+              <div class="sg-field">
+                <label>Brand</label>
+                <input v-model="form.brand" :disabled="readonly" placeholder="Brand"/>
+              </div>
+              <div class="sg-field">
+                <label>Model</label>
+                <input v-model="form.model" :disabled="readonly" placeholder="Model"/>
+              </div>
+
+              <div class="sg-field">
+                <label>Type (Comm.)</label>
+                <select v-model="form.commType" :disabled="readonly">
+                  <option value="">Select a type</option>
+                  <option v-for="c in commTypes" :key="c">{{ c }}</option>
+                </select>
+              </div>
+              <div class="sg-field">
+                <label>Serial Number (Device ID)</label>
+                <input v-model="form.deviceId" :disabled="readonly" placeholder="Serial number"/>
+              </div>
+
+              <div class="sg-field">
+                <label>Current Rating (A)</label>
+                <input v-model.number="form.ratedCT" type="number" :disabled="readonly" placeholder="Current rating A"/>
+              </div>
+              <div class="sg-field">
+                <label>Voltage Rating (V)</label>
+                <input v-model.number="form.rated" type="number" :disabled="readonly" placeholder="Voltage rating V"/>
+              </div>
+
+              <div class="sg-field">
+                <label>Max Load (Power)</label>
+                <input v-model.number="form.maxLoad" type="number" :disabled="readonly" placeholder="Power"/>
+              </div>
+              <div class="sg-field">
+                <label>Max Feed-In (Energy)</label>
+                <input v-model.number="form.maxFeedIn" type="number" :disabled="readonly" placeholder="Energy"/>
+              </div>
+
+              <div class="sg-field">
+                <label>Phase Type</label>
+                <input v-model="form.phaseType" :disabled="readonly" placeholder="Phase Type"/>
+              </div>
+              <div class="sg-field">
+                <label>Installation Date</label>
+                <input v-model="form.installDate" type="date" :disabled="readonly"/>
+              </div>
+
+              <div class="sg-field" style="grid-column: span 2; margin-top: 8px;">
+                <label>Description</label>
+                <textarea v-model="form.description" :disabled="readonly" rows="3" placeholder="Description"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="sg-col">
+            
+            <h3 class="sg-section-title">Device Photo</h3>
+            <div v-if="!readonly" class="sg-upload-dropzone" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="handleDrop">
+              <input ref="fileInput" type="file" accept=".jpg,.jpeg,.png" style="display:none" @change="handleFile"/>
+              <div v-if="!form.imagePreview">
+                <i class="ti ti-cloud-upload upload-icon"></i>
+                <p>Click to upload or drag and drop</p>
+                <small>PNG or JPG (MAX. 2048)</small>
+              </div>
+              <div v-else style="position:relative;display:inline-block">
+                <img :src="form.imagePreview" class="upload-preview-img"/>
+                <button class="btn-remove-img" @click.stop="form.imagePreview = ''">✕</button>
+              </div>
+            </div>
+            <img v-else-if="form.imagePreview" :src="form.imagePreview" class="upload-preview-img"/>
+
+            <h3 class="sg-section-title" style="margin-top: 24px;">Meter Integration</h3>
+            <div class="sg-input-grid">
+              <div class="sg-field">
+                <label>Feeder No. <span class="req">*</span></label>
+                <select v-model="form.feederNo" :disabled="readonly">
+                  <option value="">Feeder 01</option>
+                  </select>
+              </div>
+              <div class="sg-field">
+                <label>House No. <span class="req">*</span></label>
+                <select v-model="form.houseNo" :disabled="readonly">
+                  <option value="">Select a House No.</option>
+                </select>
+              </div>
+            </div>
+
+            <h3 class="sg-section-title" style="margin-top: 24px;">Device Relation</h3>
+            <div class="sg-input-grid">
+              <div class="sg-field">
+                <label>Feeder <span class="req">*</span></label>
+                <select v-model="form.deviceRelation" :disabled="readonly">
+                  <option value="">Select a feeder</option>
+                </select>
+              </div>
+              <div class="sg-field">
+                <label>Device Placement <span class="req">*</span></label>
+                <select v-model="form.devicePlacement" :disabled="readonly">
+                  <option value="">Root</option>
+                </select>
+              </div>
+            </div>
+
+            <h3 class="sg-section-title" style="margin-top: 24px;">Location</h3>
+            <div class="sg-input-grid">
+              <div class="sg-field">
+                <label>Latitude <span class="req">*</span></label>
+                <input v-model.number="form.lat" type="number" step="any" :disabled="readonly" placeholder="Latitude"/>
+              </div>
+              <div class="sg-field">
+                <label>Longitude <span class="req">*</span></label>
+                <input v-model.number="form.long" type="number" step="any" :disabled="readonly" placeholder="Longitude"/>
+              </div>
+            </div>
+
       </div>
-    </div>
-  </Teleport>
+        </div>
+      </div> 
+      </div>
+       </Teleport>
 </template>
 
-
 <style scoped>
+/* พื้นหลังดำใส */
 .modal-overlay {
-  position:fixed; inset:0; background:rgba(0,0,0,0.45);
+  position:fixed; inset:0; background:rgba(0,0,0,0.5);
   display:flex; align-items:center; justify-content:center; z-index:1000;
+  padding: 20px;
 }
-.modal-box {
-  background:var(--color-surface); border-radius:var(--radius-xl);
-  width:min(680px,95vw); max-height:90vh; overflow-y:auto;
-  box-shadow:0 20px 60px rgba(0,0,0,0.25);
+
+/* ตัวกล่องฟอร์มหลัก */
+.sg-form-card {
+  background: #ffffff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 1000px; /* บังคับกว้าง 1000px เพื่อใส่ 2 คอลัมน์ */
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  padding: 24px 32px;
+  font-family: var(--font-sans);
 }
-.modal-header {
-  display:flex; justify-content:space-between; align-items:center;
-  padding:16px 20px; border-bottom:1px solid var(--color-border);
-  position:sticky; top:0; background:var(--color-surface); z-index:1;
+
+/* ส่วนหัว */
+.sg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
-.modal-close {
-  width:28px; height:28px; border-radius:50%; border:none;
-  background:var(--color-bg); cursor:pointer; font-size:12px; color:var(--color-text-2);
-  display:flex; align-items:center; justify-content:center;
+.sg-breadcrumb { font-size: 18px; }
+.sg-title { font-weight: 700; color: #6a2c70; } /* สีม่วง SGtech */
+.text-muted { color: #9aa0b0; }
+
+/* ปุ่มกด */
+.sg-actions { display: flex; gap: 10px; }
+.sg-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none; font-family: var(--font-sans);
+  transition: opacity 0.2s;
 }
-.modal-body { padding:20px; }
-.form-section-label {
-  font-size:11px; font-weight:600; text-transform:uppercase;
-  letter-spacing:0.08em; color:var(--color-green); margin-bottom:10px;
-  padding-bottom:6px; border-bottom:1px solid var(--color-green-bg);
+.sg-btn:hover { opacity: 0.85; }
+.sg-btn-outline { background: #9aa0b0; color: white; }
+.sg-btn-primary { background: #6a2c70; color: white; }
+
+/* เส้นกั้นสีทอง/น้ำตาล */
+.sg-divider-gold {
+  height: 4px;
+  background: #b58d4a; /* สีทอง */
+  border-radius: 2px;
+  margin-bottom: 24px;
 }
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.form-field { display:flex; flex-direction:column; gap:4px; }
-.form-label { font-size:11px; color:var(--color-text-2); font-weight:500; }
-.form-input {
-  padding:8px 10px; border:1px solid var(--color-border-md);
-  border-radius:var(--radius-md); font-size:13px; font-family:var(--font-sans);
-  color:var(--color-text-1); background:var(--color-bg); outline:none; width:100%;
+
+/* กล่องแจ้งเตือน Error */
+.sg-error-box {
+  background: #fcebeb; color: #e74c3c;
+  padding: 10px 14px; border-radius: 6px; font-size: 13px;
+  margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
 }
-.form-input:focus { border-color:var(--color-green); }
-.form-input:disabled { opacity:0.6; cursor:not-allowed; }
-.upload-area {
-  border:2px dashed var(--color-border-md); border-radius:var(--radius-md);
-  padding:24px; text-align:center; cursor:pointer; background:var(--color-bg);
-  transition:border-color 0.15s;
+
+/* แบ่ง 2 คอลัมน์ */
+.sg-body-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr; /* ซ้ายใหญ่กว่าขวา */
+  gap: 40px;
 }
-.upload-area:hover { border-color:var(--color-green); }
-.tm-btn {
-  display:flex; align-items:center; gap:5px; padding:7px 14px;
-  border-radius:var(--radius-md); font-size:12px; font-weight:500;
-  font-family:var(--font-sans); cursor:pointer; transition:opacity 0.12s;
+
+/* หัวข้อหมวดหมู่ */
+.sg-section-title {
+  color: #b58d4a; /* สีทอง */
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
 }
-.tm-btn:hover { opacity:0.85; }
-.tm-btn-green   { background:var(--color-green); color:white; border:none; }
-.tm-btn-outline { background:transparent; color:var(--color-text-2); border:1px solid var(--color-border-md); }
+
+/* Input Grid (2 คอลัมน์ย่อย) */
+.sg-input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.sg-field { display: flex; flex-direction: column; gap: 6px; }
+.sg-field label {
+  font-size: 12px; font-weight: 600; color: #6a2c70; /* สีม่วง */
+}
+.req { color: #e74c3c; }
+
+/* หน้าตาช่อง Input/Select */
+.sg-field input, .sg-field select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none; background: #fff;
+}
+.sg-field input:focus, .sg-field select:focus { border-color: #6a2c70; }
+.sg-field input:disabled, .sg-field select:disabled { background: #f4f5f7; color: #9aa0b0; }
+
+/* พื้นที่อัปโหลดรูป */
+.sg-upload-dropzone {
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  background: #f8f9fb;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.sg-upload-dropzone:hover { border-color: #b58d4a; }
+.upload-icon { font-size: 28px; color: #9aa0b0; margin-bottom: 8px; display: block;}
+.sg-upload-dropzone p { font-size: 13px; font-weight: 600; color: #6a2c70; margin-bottom: 4px;}
+.sg-upload-dropzone small { font-size: 11px; color: #9aa0b0; }
+
+/* รูปพรีวิว */
+.upload-preview-img { max-height: 120px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.btn-remove-img {
+  position: absolute; top: -10px; right: -10px;
+  background: #e74c3c; color: white; border: none; border-radius: 50%;
+  width: 24px; height: 24px; cursor: pointer; font-size: 11px;
+}
+
+/* หน้าจอลบ */
+.delete-view { text-align: center; padding: 40px 0; }
+.delete-icon { font-size: 50px; color: #e74c3c; display: block; margin-bottom: 16px; }
+.delete-text { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.delete-target { font-size: 14px; color: #5a6072; }
+
+/* รองรับจอมือถือ (Responsive) */
+@media (max-width: 768px) {
+  .sg-body-grid { grid-template-columns: 1fr; gap: 24px; }
+  .sg-input-grid { grid-template-columns: 1fr; }
+}
+textarea {
+  padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; 
+  font-size: 13px; font-family: var(--font-sans); outline: none; 
+  background: #fff; resize: vertical;
+}
+textarea:focus { border-color: #6a2c70; }
 </style>
