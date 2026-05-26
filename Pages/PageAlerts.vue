@@ -8,6 +8,11 @@ import AlertsFilterChips from '@/components/PageAlerts/AlertsFilterChips.vue'
 import AlertsToolbar     from '@/components/PageAlerts/AlertsToolbar.vue'
 import AlertsTable       from '@/components/PageAlerts/AlertsTable.vue'
 import AlertDetailModal  from '@/components/PageAlerts/AlertDetailModal.vue'
+import AlertsToast       from '@/components/PageAlerts/AlertsToast.vue'
+
+// ── Toast ref ──────────────────────────────────────────────
+const toast = ref<InstanceType<typeof AlertsToast> | null>(null)
+
 // ── Filter state ───────────────────────────────────────────
 const levelFilter  = ref<'all' | 'alert' | 'warning' | 'info'>('all')
 const searchQuery  = ref('')
@@ -17,8 +22,10 @@ const ackFilter    = ref<'Unacknowledged' | 'Acknowledged'>('Unacknowledged')
 // ── Local mutable state ────────────────────────────────────
 const acknowledgedIds = ref<Set<string>>(new Set())
 const clearedIds      = ref<Set<string>>(new Set())
+const assigneeMap     = ref<Record<string, string>>({})
+const commentsMap     = ref<Record<string, string[]>>({})   // ← เก็บ comments แต่ละ alert
 
-// ── Filter chips data ──────────────────────────────────────
+// ── Filter chips ───────────────────────────────────────────
 const filterTabs = computed(() => [
   { key: 'all'     as const, label: 'ทั้งหมด', count: allAlerts.length },
   { key: 'alert'   as const, label: 'วิกฤต',   count: allAlerts.filter(a => a.level === 'alert').length },
@@ -51,7 +58,7 @@ const filteredAlerts = computed(() => {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(a =>
       a.siteId.toLowerCase().includes(q) ||
-      a.title.toLowerCase().includes(q) ||
+      a.title.toLowerCase().includes(q)  ||
       a.province.toLowerCase().includes(q)
     )
   }
@@ -62,7 +69,7 @@ const filteredAlerts = computed(() => {
 // ── Device Type mock map ───────────────────────────────────
 const deviceTypeMap: Record<string, string> = {}
 allAlerts.forEach(a => {
-  const n = parseInt(a.siteId.replace('M-', ''))
+  const n     = parseInt(a.siteId.replace('M-', ''))
   const types = ['PV 1P PST', 'EV 1P PST', 'TRANSFORMER 160 PST', 'PV 3P PST', 'EV 3P PST']
   deviceTypeMap[a.id] = types[n % types.length]
 })
@@ -70,10 +77,16 @@ allAlerts.forEach(a => {
 // ── Actions ────────────────────────────────────────────────
 function clearAll() {
   allAlerts.forEach(a => clearedIds.value.add(a.id))
+  toast.value?.show('ล้างการแจ้งเตือนทั้งหมดแล้ว', 'info')
 }
 
 function handleDelete(id: string) {
   clearedIds.value.add(id)
+  toast.value?.show('ลบรายการแจ้งเตือนแล้ว', 'info')
+}
+
+function handleRefresh() {
+  toast.value?.show('รีเฟรชข้อมูลแล้ว', 'success')
 }
 
 // ── Modal state ────────────────────────────────────────────
@@ -85,24 +98,38 @@ function closeModal()              { selectedAlert.value = null  }
 function handleAcknowledge(id: string) {
   acknowledgedIds.value.add(id)
   closeModal()
+  toast.value?.show('รับทราบการแจ้งเตือนแล้ว', 'success')
 }
 
 function handleClear(id: string) {
   clearedIds.value.add(id)
   closeModal()
+  toast.value?.show('ล้างการแจ้งเตือนแล้ว', 'info')
+}
+
+function handleAssign(id: string, name: string) {
+  assigneeMap.value = { ...assigneeMap.value, [id]: name }
+  const label = name === 'Unassigned' ? 'ยกเลิกการมอบหมาย' : `มอบหมายให้ ${name} แล้ว`
+  toast.value?.show(label, 'success')
+}
+
+function handleAddComment(id: string, text: string) {
+  if (!commentsMap.value[id]) commentsMap.value[id] = []
+  commentsMap.value[id] = [...commentsMap.value[id], text]
+  toast.value?.show('เพิ่มความคิดเห็นแล้ว', 'success')
 }
 
 // ── Export CSV ─────────────────────────────────────────────
 function handleExport() {
   const header = 'Timestamp,Severity,PEA Device No.,Device Type,Province,Event,Assignee,Status'
-  const rows = filteredAlerts.value.map(a => [
+  const rows   = filteredAlerts.value.map(a => [
     a.time,
     a.level === 'alert' ? 'CRITICAL' : a.level === 'warning' ? 'MAJOR' : 'NORMAL',
     a.siteId,
     deviceTypeMap[a.id] ?? '',
     a.province,
     `"${a.title}"`,
-    'Unassigned',
+    assigneeMap.value[a.id] || 'Unassigned',
     acknowledgedIds.value.has(a.id) ? 'Acknowledged' : 'Unacknowledged',
   ].join(','))
 
@@ -113,47 +140,52 @@ function handleExport() {
   el.download = 'alerts.csv'
   el.click()
   URL.revokeObjectURL(url)
+
+  toast.value?.show(`Export ${filteredAlerts.value.length} รายการสำเร็จ`, 'success')
 }
 </script>
 
 <template>
   <div class="alerts-page">
 
-    <!-- Header -->
     <AlertsHeader :criticalCount="criticalCount" />
 
-    <!-- Filter chips -->
     <AlertsFilterChips
       v-model="levelFilter"
       :tabs="filterTabs"
     />
 
-    <!-- Toolbar -->
     <AlertsToolbar
       v-model:searchQuery="searchQuery"
       v-model:activeStatus="activeStatus"
       v-model:ackFilter="ackFilter"
       @clearAll="clearAll"
       @export="handleExport"
+      @refresh="handleRefresh"
     />
 
-    <!-- Table -->
     <AlertsTable
       :alerts="filteredAlerts"
       :acknowledgedIds="acknowledgedIds"
+      :assigneeMap="assigneeMap"
       :deviceTypeMap="deviceTypeMap"
       @select="openDetail"
       @delete="handleDelete"
     />
 
-    <!-- Detail Modal -->
     <AlertDetailModal
       :alert="selectedAlert"
       :isAcknowledged="selectedAlert ? acknowledgedIds.has(selectedAlert.id) : false"
+      :currentAssignee="selectedAlert ? (assigneeMap[selectedAlert.id] || 'Unassigned') : 'Unassigned'"
+      :comments="selectedAlert ? (commentsMap[selectedAlert.id] ?? []) : []"
       @close="closeModal"
       @acknowledge="handleAcknowledge"
       @clear="handleClear"
+      @assign="handleAssign"
+      @addComment="handleAddComment"
     />
+
+    <AlertsToast ref="toast" />
 
   </div>
 </template>
@@ -165,7 +197,6 @@ function handleExport() {
   background: var(--color-bg, #f9fafb);
   min-height: 100vh;
 }
-
 @media (max-width: 768px) {
   .alerts-page { padding: 16px; }
 }
