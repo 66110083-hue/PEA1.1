@@ -36,7 +36,6 @@ const emit = defineEmits<{
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
-
 .chip {
   height: 36px;
   padding: 0 16px;
@@ -50,12 +49,6 @@ const emit = defineEmits<{
   cursor: pointer;
   transition: all .15s ease;
 }
-
 .chip:hover { opacity: .8; }
-
-.chip.active {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
-}
+.chip.active { background: #2563eb; border-color: #2563eb; color: #fff; }
 </style>

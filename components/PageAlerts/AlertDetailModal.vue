@@ -3,29 +3,48 @@ import { ref, watch } from 'vue'
 import type { Alert } from '@/composables/useSiteData'
 
 const props = defineProps<{
-  alert: Alert | null
-  isAcknowledged: boolean
+  alert:           Alert | null
+  isAcknowledged:  boolean
+  currentAssignee: string
+  comments:        string[]
 }>()
 
 const emit = defineEmits<{
-  (e: 'close'):                  void
-  (e: 'acknowledge', id: string): void
-  (e: 'clear',       id: string): void
+  (e: 'close'):                                 void
+  (e: 'acknowledge',  id: string):              void
+  (e: 'clear',        id: string):              void
+  (e: 'assign',       id: string, name: string): void
+  (e: 'addComment',   id: string, text: string): void
 }>()
 
-// Reset local state when modal opens
 const assignee    = ref('Unassigned')
 const commentText = ref('')
 
+const assigneeOptions = ['Unassigned', 'Admin', 'Engineer A', 'Engineer B', 'Engineer C']
+
 watch(() => props.alert, () => {
-  assignee.value    = 'Unassigned'
+  assignee.value    = props.currentAssignee || 'Unassigned'
   commentText.value = ''
 })
+
+watch(() => props.currentAssignee, (v) => {
+  assignee.value = v || 'Unassigned'
+})
+
+function handleAssignChange(val: string) {
+  assignee.value = val
+  if (props.alert) emit('assign', props.alert.id, val)
+}
+
+function submitComment() {
+  if (!commentText.value.trim() || !props.alert) return
+  emit('addComment', props.alert.id, commentText.value.trim())
+  commentText.value = ''
+}
 
 function severityLabel(level: Alert['level']) {
   return level === 'alert' ? 'CRITICAL' : level === 'warning' ? 'MAJOR' : 'NORMAL'
 }
-
 function severityClass(level: Alert['level']) {
   return level === 'alert' ? 'sev-critical' : level === 'warning' ? 'sev-major' : 'sev-normal'
 }
@@ -34,11 +53,7 @@ function severityClass(level: Alert['level']) {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div
-        v-if="alert"
-        class="overlay"
-        @click.self="emit('close')"
-      >
+      <div v-if="alert" class="overlay" @click.self="emit('close')">
         <div class="modal" role="dialog" aria-modal="true">
 
           <!-- Header -->
@@ -52,95 +67,91 @@ function severityClass(level: Alert['level']) {
           <!-- Body -->
           <div class="modal-body">
 
-            <!-- Detail rows -->
             <div class="detail-grid">
-
               <div class="detail-row">
                 <span class="detail-label">Start Time</span>
                 <span class="detail-value">2025-07-02 13:43:09</span>
               </div>
-
               <div class="detail-row">
                 <span class="detail-label">Severity</span>
                 <span class="sev-badge" :class="severityClass(alert.level)">
                   {{ severityLabel(alert.level) }}
                 </span>
               </div>
-
               <div class="detail-row">
                 <span class="detail-label">Event</span>
                 <span class="detail-value">{{ alert.title }}</span>
               </div>
-
               <div class="detail-row">
                 <span class="detail-label">Status</span>
-                <span
-                  class="status-badge"
-                  :class="isAcknowledged ? 'status-ack' : 'status-unack'"
-                >
+                <span class="status-badge" :class="isAcknowledged ? 'status-ack' : 'status-unack'">
                   {{ isAcknowledged ? 'Active & Acknowledged' : 'Active & Unacknowledged' }}
                 </span>
               </div>
-
             </div>
 
-            <!-- Show More -->
             <details class="show-more">
               <summary>Show More</summary>
               <pre class="show-more-json">{{
                 JSON.stringify({
                   'Alarm Description': alert.title,
-                  'Keys': [],
+                  'Keys':     [],
                   'Province': alert.province,
                   'District': alert.district,
-                  'Site ID': alert.siteId,
+                  'Site ID':  alert.siteId,
                 }, null, 2)
               }}</pre>
             </details>
 
-            <!-- Assignee -->
             <div class="modal-field">
               <label class="field-label">Assignee</label>
-              <select v-model="assignee" class="field-select">
-                <option>Unassigned</option>
-                <option>Admin</option>
-                <option>Engineer A</option>
-                <option>Engineer B</option>
+              <select
+                :value="assignee"
+                class="field-select"
+                @change="handleAssignChange(($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="opt in assigneeOptions" :key="opt" :value="opt">{{ opt }}</option>
               </select>
             </div>
 
-            <!-- Activity -->
             <div class="modal-field">
               <label class="field-label">Activity</label>
               <p class="activity-sub">Add New Comment</p>
-              <textarea
-                v-model="commentText"
-                class="field-textarea"
-                placeholder="Add a comment..."
-                rows="3"
-              />
-              <p v-if="!commentText" class="no-comments">No Comments</p>
+
+              <div class="comment-input-row">
+                <textarea
+                  v-model="commentText"
+                  class="field-textarea"
+                  placeholder="Add a comment..."
+                  rows="2"
+                  @keydown.ctrl.enter="submitComment"
+                />
+                <button
+                  class="btn-add-comment"
+                  :disabled="!commentText.trim()"
+                  @click="submitComment"
+                >
+                  ส่ง
+                </button>
+              </div>
+
+              <div v-if="comments.length > 0" class="comment-list">
+                <div v-for="(c, i) in comments" :key="i" class="comment-item">
+                  <i class="ti ti-message comment-icon" />
+                  <span>{{ c }}</span>
+                </div>
+              </div>
+              <p v-else class="no-comments">No Comments</p>
+
             </div>
 
           </div>
 
           <!-- Footer -->
           <div class="modal-footer">
-            <button class="btn btn-cancel" @click="emit('close')">
-              Cancel
-            </button>
-            <button
-              class="btn btn-ack"
-              @click="emit('acknowledge', alert.id)"
-            >
-              Acknowledged
-            </button>
-            <button
-              class="btn btn-clear"
-              @click="emit('clear', alert.id)"
-            >
-              Clear
-            </button>
+            <button class="btn btn-cancel" @click="emit('close')">Cancel</button>
+            <button class="btn btn-ack"    @click="emit('acknowledge', alert.id)">Acknowledged</button>
+            <button class="btn btn-clear"  @click="emit('clear', alert.id)">Clear</button>
           </div>
 
         </div>
@@ -150,7 +161,6 @@ function severityClass(level: Alert['level']) {
 </template>
 
 <style scoped>
-/* Overlay */
 .overlay {
   position: fixed;
   inset: 0;
@@ -160,8 +170,6 @@ function severityClass(level: Alert['level']) {
   align-items: center;
   justify-content: center;
 }
-
-/* Modal box */
 .modal {
   background: #fff;
   border-radius: 14px;
@@ -173,8 +181,6 @@ function severityClass(level: Alert['level']) {
   box-shadow: 0 20px 60px rgba(0,0,0,.2);
   overflow: hidden;
 }
-
-/* Header */
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -198,8 +204,6 @@ function severityClass(level: Alert['level']) {
   border-radius: 6px;
 }
 .btn-close:hover { background: #f3f4f6; }
-
-/* Body */
 .modal-body {
   padding: 20px;
   overflow-y: auto;
@@ -209,18 +213,8 @@ function severityClass(level: Alert['level']) {
   gap: 16px;
   font-family: var(--font-sans, inherit);
 }
-
-/* Detail grid */
-.detail-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.detail-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+.detail-grid { display: flex; flex-direction: column; gap: 10px; }
+.detail-row  { display: flex; align-items: center; gap: 12px; }
 .detail-label {
   width: 90px;
   flex-shrink: 0;
@@ -228,12 +222,7 @@ function severityClass(level: Alert['level']) {
   font-weight: 600;
   color: var(--color-text-3, #6b7280);
 }
-.detail-value {
-  font-size: 13px;
-  color: var(--color-text-1, #111827);
-}
-
-/* Severity */
+.detail-value { font-size: 13px; color: var(--color-text-1, #111827); }
 .sev-badge {
   display: inline-block;
   padding: 3px 10px;
@@ -245,8 +234,6 @@ function severityClass(level: Alert['level']) {
 .sev-critical { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 .sev-major    { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 .sev-normal   { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-
-/* Status */
 .status-badge {
   display: inline-block;
   padding: 3px 10px;
@@ -256,8 +243,6 @@ function severityClass(level: Alert['level']) {
 }
 .status-unack { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
 .status-ack   { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-
-/* Show More */
 .show-more {
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 8px;
@@ -282,25 +267,10 @@ function severityClass(level: Alert['level']) {
   line-height: 1.6;
   overflow: auto;
 }
-
-/* Fields */
-.modal-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.field-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-2, #374151);
-}
-.activity-sub {
-  font-size: 12px;
-  color: var(--color-text-3, #6b7280);
-  margin: 0;
-}
-.field-select,
-.field-textarea {
+.modal-field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 12px; font-weight: 600; color: var(--color-text-2, #374151); }
+.activity-sub { font-size: 12px; color: var(--color-text-3, #6b7280); margin: 0; }
+.field-select {
   border: 1px solid #dbe0e6;
   border-radius: 8px;
   padding: 8px 10px;
@@ -309,16 +279,62 @@ function severityClass(level: Alert['level']) {
   outline: none;
   transition: border-color .15s;
 }
-.field-select:focus,
-.field-textarea:focus { border-color: #2563eb; }
-.field-textarea { resize: vertical; }
-.no-comments {
-  font-size: 12px;
-  color: #9ca3af;
-  margin: 0;
+.field-select:focus { border-color: #2563eb; }
+.comment-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
 }
-
-/* Footer */
+.field-textarea {
+  flex: 1;
+  border: 1px solid #dbe0e6;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  transition: border-color .15s;
+  min-height: 60px;
+}
+.field-textarea:focus { border-color: #2563eb; }
+.btn-add-comment {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity .15s;
+}
+.btn-add-comment:disabled             { opacity: .4; cursor: not-allowed; }
+.btn-add-comment:not(:disabled):hover { opacity: .9; }
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+  color: var(--color-text-1, #111827);
+  line-height: 1.4;
+}
+.comment-icon { font-size: 14px; color: #9ca3af; flex-shrink: 0; margin-top: 1px; }
+.no-comments  { font-size: 12px; color: #9ca3af; margin: 0; }
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -337,12 +353,10 @@ function severityClass(level: Alert['level']) {
   border: none;
   transition: opacity .15s;
 }
-.btn:hover    { opacity: .85; }
-.btn-cancel   { background: #f3f4f6; color: #374151; }
-.btn-ack      { background: #2563eb; color: #fff; }
-.btn-clear    { background: #dc2626; color: #fff; }
-
-/* Transition */
+.btn:hover  { opacity: .85; }
+.btn-cancel { background: #f3f4f6; color: #374151; }
+.btn-ack    { background: #2563eb; color: #fff; }
+.btn-clear  { background: #dc2626; color: #fff; }
 .modal-enter-active,
 .modal-leave-active { transition: opacity .2s ease; }
 .modal-enter-from,

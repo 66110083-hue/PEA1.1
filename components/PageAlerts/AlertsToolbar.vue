@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 const props = defineProps<{
-  searchQuery: string
+  searchQuery:  string
   activeStatus: 'Active' | 'Clear'
-  ackFilter: 'Unacknowledged' | 'Acknowledged'
+  ackFilter:    'Unacknowledged' | 'Acknowledged'
 }>()
 
 const emit = defineEmits<{
@@ -10,8 +12,24 @@ const emit = defineEmits<{
   (e: 'update:activeStatus', val: 'Active' | 'Clear'): void
   (e: 'update:ackFilter',    val: 'Unacknowledged' | 'Acknowledged'): void
   (e: 'clearAll'): void
-  (e: 'export'): void
+  (e: 'export'):   void
+  (e: 'refresh'):  void
 }>()
+
+const isRefreshing = ref(false)
+const lastUpdated  = ref(new Date())
+
+function formatTime(d: Date) {
+  return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+async function handleRefresh() {
+  isRefreshing.value = true
+  emit('refresh')
+  await new Promise(r => setTimeout(r, 800))
+  lastUpdated.value  = new Date()
+  isRefreshing.value = false
+}
 </script>
 
 <template>
@@ -20,6 +38,21 @@ const emit = defineEmits<{
     <!-- Clear All -->
     <button class="btn-clear-all" @click="emit('clearAll')">
       Clear All
+    </button>
+
+    <!-- Last updated -->
+    <span class="last-updated">
+      อัปเดต {{ formatTime(lastUpdated) }}
+    </span>
+
+    <!-- Refresh -->
+    <button
+      class="btn-refresh"
+      :disabled="isRefreshing"
+      @click="handleRefresh"
+      title="รีเฟรช"
+    >
+      <i class="ti ti-refresh" :class="{ spin: isRefreshing }" />
     </button>
 
     <div style="flex: 1" />
@@ -95,12 +128,37 @@ const emit = defineEmits<{
 }
 .btn-clear-all:hover { opacity: .8; }
 
+.last-updated {
+  font-size: 11px;
+  color: var(--color-text-3, #9ca3af);
+  white-space: nowrap;
+}
+
+.btn-refresh {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #dbe0e6;
+  background: #fff;
+  color: var(--color-text-2, #4b5563);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.btn-refresh:hover:not(:disabled) { background: #f3f4f6; }
+.btn-refresh:disabled { opacity: .5; cursor: not-allowed; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin .7s linear infinite; display: inline-block; }
+
 .search-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
-
 .search-icon {
   position: absolute;
   left: 10px;
@@ -108,7 +166,6 @@ const emit = defineEmits<{
   color: #9ca3af;
   pointer-events: none;
 }
-
 .search-input {
   height: 36px;
   width: 240px;
@@ -121,7 +178,6 @@ const emit = defineEmits<{
   transition: border-color .15s;
 }
 .search-input:focus { border-color: #2563eb; }
-
 .search-clear {
   position: absolute;
   right: 8px;
@@ -166,5 +222,6 @@ const emit = defineEmits<{
 
 @media (max-width: 768px) {
   .search-input { width: 160px; }
+  .last-updated { display: none; }
 }
 </style>
