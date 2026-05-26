@@ -1,4 +1,5 @@
-import { ref, computed } from 'vue'
+// 📂 composables/useSettings.ts
+import { ref, computed, watch } from 'vue'
 
 export interface User {
   id: number
@@ -20,7 +21,7 @@ export interface LimiterConfig {
   maxVAR: number
 }
 
-// 🔥 หัวใจสำคัญ: ประกาศ State ไว้นอกฟังก์ชันเพื่อให้ทุก Component ใช้ฐานข้อมูลก้อนเดียวกันตัวเดียวกันจริง ๆ
+// ── State ส่วนกลาง (Singleton) ──
 const activeTab = ref('user')
 const searchUser = ref('')
 const showAddUser = ref(false)
@@ -28,14 +29,14 @@ const showAddUser = ref(false)
 const defaultNewUser = (): User => ({ id: 0, role: 'Viewer', province: '', firstName: '', lastName: '', email: '', phone: '' })
 const newUser = ref<User>(defaultNewUser())
 
-const users = ref<User[]>([
+const initialUsers: User[] = [
   { id: 1, firstName: 'Admin', lastName: 'Precise', email: 'admin.pe@precise.co.th', phone: '-', role: 'Admin' },
   { id: 2, firstName: 'Admin_TTU', lastName: 'Wellfire', email: 'admin_ttu@wellfire.co.th', phone: '-', role: 'Admin' },
   { id: 3, firstName: 'External', lastName: 'Rule Chain', email: 'external_rule@gmail.com', phone: '-', role: 'Viewer' },
   { id: 4, firstName: 'John', lastName: 'Doe', email: 'john.doe@gmail.com', phone: '0891234567', role: 'Viewer' },
-])
+]
 
-const limiter = ref<LimiterConfig>({
+const initialLimiter: LimiterConfig = {
   enabled: true,
   deviceType: 'Transformer',
   minV: 200,
@@ -43,10 +44,38 @@ const limiter = ref<LimiterConfig>({
   maxA: 50,
   maxW: 15000,
   maxVAR: 5000
-})
+}
+
+const users = ref<User[]>(initialUsers)
+const limiter = ref<LimiterConfig>(initialLimiter)
+
+let isInitialized = false
 
 export function useSettings() {
   
+  if (typeof window !== 'undefined' && !isInitialized) {
+    
+    const savedUsers = localStorage.getItem('sg_settings_users')
+    if (savedUsers) {
+      try { users.value = JSON.parse(savedUsers) } catch (e) { console.error(e) }
+    }
+
+    const savedLimiter = localStorage.getItem('sg_settings_limiter')
+    if (savedLimiter) {
+      try { limiter.value = JSON.parse(savedLimiter) } catch (e) { console.error(e) }
+    }
+
+    isInitialized = true
+
+    watch(users, (newVal) => {
+      localStorage.setItem('sg_settings_users', JSON.stringify(newVal))
+    }, { deep: true })
+
+    watch(limiter, (newVal) => {
+      localStorage.setItem('sg_settings_limiter', JSON.stringify(newVal))
+    }, { deep: true })
+  }
+
   const filteredUsers = computed(() => {
     if (!searchUser.value) return users.value
     const q = searchUser.value.toLowerCase()
@@ -93,6 +122,7 @@ export function useSettings() {
   }
 
   function saveLimiterConfig() {
+    localStorage.setItem('sg_settings_limiter', JSON.stringify(limiter.value))
     alert('บันทึกการตั้งค่า Limiter เรียบร้อยแล้ว!')
   }
 
