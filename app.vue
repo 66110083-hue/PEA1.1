@@ -42,6 +42,7 @@ const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overv
 // =========================
 const navMain = [
   { to: 'overview',     label: 'ภาพรวม',          icon: 'ti-layout-dashboard' },
+  { to: 'dashboard',    label: 'แดชบอร์ดใหม่',     icon: 'ti-chart-bar'        },
   { to: 'transformer',  label: 'จัดการหม้อแปลง',   icon: 'ti-bolt'             },
   { to: 'alerts',       label: 'การแจ้งเตือน',      icon: 'ti-bell-ringing'     },
 ]
@@ -61,6 +62,7 @@ const navSystem = [
 const pageMap: Record<string, any> = {
   login:       defineAsyncComponent(() => import('~/Pages/PageLogin.vue')),
   overview:    defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
+  dashboard:   defineAsyncComponent(() => import('~/Pages/PageDashboard.vue')),
   alerts:      defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
   history:     defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
   breakeven:   defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
@@ -117,9 +119,6 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="isLoggedIn" class="layout">
 
-    <!-- ══════════════════════════════════
-         Sidebar
-    ══════════════════════════════════ -->
     <aside class="sidebar">
 
       <div class="sidebar-logo">
@@ -140,7 +139,7 @@ onBeforeUnmount(() => {
         :class="{ active: currentPage === item.to }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" />
+        <i :class="`ti ${item.icon}`"></i>
         {{ item.label }}
       </button>
 
@@ -152,7 +151,7 @@ onBeforeUnmount(() => {
         :class="{ active: currentPage === item.to }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" />
+        <i :class="`ti ${item.icon}`"></i>
         {{ item.label }}
       </button>
 
@@ -164,7 +163,7 @@ onBeforeUnmount(() => {
         :class="{ active: currentPage === item.to }"
         @click="currentPage = item.to"
       >
-        <i :class="`ti ${item.icon}`" />
+        <i :class="`ti ${item.icon}`"></i>
         {{ item.label }}
       </button>
 
@@ -173,63 +172,49 @@ onBeforeUnmount(() => {
         style="margin-top: auto; color: var(--color-red-text);"
         @click="handleLogout"
       >
-        <i class="ti ti-logout" />
+        <i class="ti ti-logout"></i>
         ออกจากระบบ
       </button>
 
     </aside>
 
-    <!-- ══════════════════════════════════
-         Topbar
-    ══════════════════════════════════ -->
     <header class="topbar">
-      <div />
+      <div></div> <div class="topbar-right">
 
-      <div class="topbar-right">
-
-        <!-- Online status -->
         <div class="status-badge">
-          <span class="status-dot" />
-          Online 26/30
+          <span class="status-dot"></span> Online 26/30
         </div>
 
-        <!-- Clock -->
         <div class="clock-display">
           {{ clock }}
         </div>
 
-        <!-- ── Notification ── -->
         <div class="notification-wrapper">
 
           <div
             class="notification-btn"
             @click="showNotification = !showNotification; showProfileMenu = false"
           >
-            <i class="ti ti-bell notification-icon" />
-            <span v-if="hasNotification" class="notification-dot" />
-          </div>
+            <i class="ti ti-bell notification-icon"></i>
+            <span v-if="hasNotification" class="notification-dot"></span> </div>
 
           <div v-if="showNotification" class="notification-dropdown">
 
             <div class="notification-header">แจ้งเตือนระบบ</div>
 
-            <!-- ไม่มีแจ้งเตือน -->
             <div v-if="abnormalAlerts.length === 0" class="notification-empty">
               ไม่มีแจ้งเตือน
             </div>
 
-            <!-- สรุปจำนวนโดยไม่แสดงรายละเอียด -->
             <div v-else class="notification-summary">
 
               <div v-if="criticalCount > 0" class="summary-row critical">
-                <span class="summary-dot" />
-                <span class="summary-label">วิกฤต</span>
+                <span class="summary-dot"></span> <span class="summary-label">วิกฤต</span>
                 <span class="summary-count">{{ criticalCount }} จุด</span>
               </div>
 
               <div v-if="offlineCount > 0" class="summary-row offline">
-                <span class="summary-dot" />
-                <span class="summary-label">ออฟไลน์</span>
+                <span class="summary-dot"></span> <span class="summary-label">ออฟไลน์</span>
                 <span class="summary-count">{{ offlineCount }} จุด</span>
               </div>
 
@@ -245,7 +230,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- ── Profile Avatar + Dropdown ── -->
         <div class="profile-wrapper">
 
           <div
@@ -265,23 +249,19 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div class="profile-dropdown-divider" />
-
-            <button
+            <div class="profile-dropdown-divider"></div> <button
               class="profile-dropdown-item"
               @click="currentPage = 'settings'; showProfileMenu = false"
             >
-              <i class="ti ti-settings" />
+              <i class="ti ti-settings"></i>
               ตั้งค่าระบบ
             </button>
 
-            <div class="profile-dropdown-divider" />
-
-            <button
+            <div class="profile-dropdown-divider"></div> <button
               class="profile-dropdown-item danger"
               @click="handleLogout"
             >
-              <i class="ti ti-logout" />
+              <i class="ti ti-logout"></i>
               ออกจากระบบ
             </button>
 
@@ -291,9 +271,6 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <!-- ══════════════════════════════════
-         Main Content
-    ══════════════════════════════════ -->
     <main class="main-content">
       <Transition name="page" mode="out-in">
         <component
@@ -306,9 +283,6 @@ onBeforeUnmount(() => {
 
   </div>
 
-  <!-- ══════════════════════════════════
-       Login Layout
-  ══════════════════════════════════ -->
   <div v-else class="login-layout">
     <Transition name="page" mode="out-in">
       <component

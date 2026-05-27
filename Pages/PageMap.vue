@@ -45,4 +45,3 @@ function onSelect(id: string) {
   </div>
   
 </template>
-
