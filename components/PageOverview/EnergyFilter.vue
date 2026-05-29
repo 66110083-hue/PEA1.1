@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
 
-// 🔥 เพิ่ม Props สำหรับดึงค่าเริ่มต้นจาก URL หลังกดย้อนกลับ
+// เพิ่ม Props สำหรับดึงค่าเริ่มต้นจาก URL หลังกดย้อนกลับ
 const props = defineProps<{ 
   loading?: boolean 
   initProvince?: string
@@ -19,7 +19,10 @@ const { provinces, districtsByProvince, allSites } = useSiteData()
 const selectedProvince = ref(props.initProvince || '')
 const selectedDistrict = ref(props.initDistrict || '')
 const selectedSiteId = ref(props.initSiteId || '')
-const selectedDate = ref(new Date().toISOString().split('T')[0])
+
+// 🟢 เปลี่ยนจากตัวเลือกวันเดียว เป็น วันที่เริ่มต้น และ วันที่สิ้นสุด (Default เป็นวันปัจจุบัน)
+const startDate = ref(new Date().toISOString().split('T')[0])
+const endDate = ref(new Date().toISOString().split('T')[0])
 
 // ดึงรายชื่ออำเภอ เมื่อจังหวัดเปลี่ยน
 const availableDistricts = computed(() => {
@@ -61,12 +64,14 @@ watch(selectedDistrict, () => {
   selectedSiteId.value = ''
 })
 
+// 🟢 ส่งค่าช่วงวันที่เริ่มต้นและสิ้นสุดออกไปพร้อมโครงสร้าง Filter อื่นๆ
 const handleApply = () => {
   emit('apply', {
     province: selectedProvince.value,
     district: selectedDistrict.value,
     siteId: selectedSiteId.value,
-    date: selectedDate.value
+    startDate: startDate.value,
+    endDate: endDate.value
   })
 }
 </script>
@@ -101,8 +106,13 @@ const handleApply = () => {
       </div>
 
       <div class="select-wrapper">
-        <label>วันที่</label>
-        <input type="date" v-model="selectedDate" class="form-control-sm" />
+        <label>วันที่เริ่มต้น</label>
+        <input type="date" v-model="startDate" class="form-control-sm" />
+      </div>
+
+      <div class="select-wrapper">
+        <label>วันที่สิ้นสุด</label>
+        <input type="date" v-model="endDate" class="form-control-sm" :min="startDate" />
       </div>
 
       <button 

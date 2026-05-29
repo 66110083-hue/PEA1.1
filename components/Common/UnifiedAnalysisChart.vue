@@ -36,7 +36,7 @@ const chartOption = computed(() => {
     smooth: props.showSmooth ?? true,
     symbol: 'none', // ปิดจุดตุ่มวงกลมบนเส้นเพื่อความสะอาดตา
     lineStyle: {
-      width: 2,
+      width: 1.2,
       color: set.color
     },
     itemStyle: {
