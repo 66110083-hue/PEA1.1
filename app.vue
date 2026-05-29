@@ -11,11 +11,11 @@ import { allAlerts } from '@/composables/useSiteData'
 // =========================
 // State & Authentication
 // =========================
-const isLoggedIn = ref(false)
-const currentPage = ref('login')
+const isLoggedIn      = ref(false)
+const currentPage     = ref('login')
 const showNotification = ref(false)
 const showProfileMenu = ref(false)
-const clock = ref('')
+const clock           = ref('')
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
 // =========================
@@ -41,14 +41,15 @@ const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overv
 // Navigation Menu Data
 // =========================
 const navMain = [
-  { to: 'overview',     label: 'ภาพรวม',          icon: 'ti-layout-dashboard' },
-  { to: 'dashboard',    label: 'แดชบอร์ดใหม่',     icon: 'ti-chart-bar'        },
-  { to: 'transformer',  label: 'จัดการหม้อแปลง',   icon: 'ti-bolt'             },
-  { to: 'alerts',       label: 'การแจ้งเตือน',      icon: 'ti-bell-ringing'     },
+  { to: 'overview',    label: 'ภาพรวม',         icon: 'ti-layout-dashboard' },
+  { to: 'dashboard',   label: 'แดชบอร์ดใหม่',    icon: 'ti-chart-bar'        },
+  { to: 'transformer', label: 'จัดการหม้อแปลง',  icon: 'ti-bolt'             },
+  { to: 'alerts',      label: 'การแจ้งเตือน',     icon: 'ti-bell-ringing'     },
 ]
 
 const navAnalysis = [
   { to: 'history',   label: 'ข้อมูลย้อนหลัง', icon: 'ti-history'    },
+  { to: 'analysis',  label: 'รายงานวิเคราะห์', icon: 'ti-chart-line' }, // ← เพิ่มใหม่
   { to: 'breakeven', label: 'จุดคุ้มทุน',      icon: 'ti-calculator' },
 ]
 
@@ -65,6 +66,7 @@ const pageMap: Record<string, any> = {
   dashboard:   defineAsyncComponent(() => import('~/Pages/PageDashboard.vue')),
   alerts:      defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
   history:     defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
+  analysis:    defineAsyncComponent(() => import('~/Pages/PageAnalysisReport.vue')), // ← เพิ่มใหม่
   breakeven:   defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
   settings:    defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
   transformer: defineAsyncComponent(() => import('~/Pages/PageTransformerManagement.vue')),
@@ -179,7 +181,8 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="topbar">
-      <div></div> <div class="topbar-right">
+      <div></div>
+      <div class="topbar-right">
 
         <div class="status-badge">
           <span class="status-dot"></span> Online 26/30
@@ -196,7 +199,8 @@ onBeforeUnmount(() => {
             @click="showNotification = !showNotification; showProfileMenu = false"
           >
             <i class="ti ti-bell notification-icon"></i>
-            <span v-if="hasNotification" class="notification-dot"></span> </div>
+            <span v-if="hasNotification" class="notification-dot"></span>
+          </div>
 
           <div v-if="showNotification" class="notification-dropdown">
 
@@ -209,12 +213,14 @@ onBeforeUnmount(() => {
             <div v-else class="notification-summary">
 
               <div v-if="criticalCount > 0" class="summary-row critical">
-                <span class="summary-dot"></span> <span class="summary-label">วิกฤต</span>
+                <span class="summary-dot"></span>
+                <span class="summary-label">วิกฤต</span>
                 <span class="summary-count">{{ criticalCount }} จุด</span>
               </div>
 
               <div v-if="offlineCount > 0" class="summary-row offline">
-                <span class="summary-dot"></span> <span class="summary-label">ออฟไลน์</span>
+                <span class="summary-dot"></span>
+                <span class="summary-label">ออฟไลน์</span>
                 <span class="summary-count">{{ offlineCount }} จุด</span>
               </div>
 
@@ -249,7 +255,9 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div class="profile-dropdown-divider"></div> <button
+            <div class="profile-dropdown-divider"></div>
+
+            <button
               class="profile-dropdown-item"
               @click="currentPage = 'settings'; showProfileMenu = false"
             >
@@ -257,7 +265,9 @@ onBeforeUnmount(() => {
               ตั้งค่าระบบ
             </button>
 
-            <div class="profile-dropdown-divider"></div> <button
+            <div class="profile-dropdown-divider"></div>
+
+            <button
               class="profile-dropdown-item danger"
               @click="handleLogout"
             >
