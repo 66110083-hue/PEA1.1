@@ -122,8 +122,8 @@ export function useDashboard(options: DashboardOptions = {}) {
     hasData.value   = true
 // await nextTick() --- IGNORE --- เพื่อรอให้ DOM อัพเดตก่อนที่จะเรียก init() และ refreshChart() ซึ่งจะใช้ข้อมูลใหม่ที่เพิ่งโหลดมาแสดงผลใน chart ได้ถูกต้อง
     await nextTick()
-    init()
-    refreshChart()
+    ////init()
+    ////refreshChart()
   }
 
   // ─────────────────────────────────────────────
@@ -143,7 +143,7 @@ export function useDashboard(options: DashboardOptions = {}) {
 
     } else {
 
-      setTimeout(() => init(), 150)
+      ////setTimeout(() => init(), 150)
     }
 
     // auto refresh ทุก 10 นาที

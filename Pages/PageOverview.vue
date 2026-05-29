@@ -7,15 +7,20 @@ import PhaseCard     from '~/components/PageOverview/PhaseCard.vue'
 import EnergyFilter  from '~/components/PageOverview/EnergyFilter.vue'
 import PhaseSelector from '~/components/PageOverview/PhaseSelector.vue'
 
+// Import Component กราฟ ECharts
+import UnifiedAnalysisChart from '~/components/Common/UnifiedAnalysisChart.vue'
+
 const SiteMap = defineAsyncComponent(() =>
   import('~/components/Page map/SiteMap.vue')
 )
 
+// ดึงข้อมูลและ State ทั้งหมดออกมาจาก useDashboard
 const {
   activeMetric, activePhases,
   hasData, isLoading,
   PHASES, latest, statistics, balanceData, unit, lastUpdateText,
   handleFilter: apiFilter,
+  allData // 🟢 ดึงข้อมูลดิบย้อนหลัง 1,000 จุดออกมาใช้งานตรงนี้
 } = useDashboard()
 
 const { allSites } = useSiteData()
@@ -24,6 +29,30 @@ const { allSites } = useSiteData()
 const selectedProvince = ref('')
 const selectedDistrict = ref('')
 const selectedSiteId   = ref<string | null>(null)
+
+// 🟢 1. แปลงข้อมูลแกน X (เวลา) ออกมาจากข้อมูลดิบ 1,000 จุด
+const chartXData = computed(() => {
+  if (!allData.value) return []
+  return allData.value.map((d: any) => d.label) // ผลลัพธ์จะเป็นพวก ['12:00', '12:10', ...]
+})
+
+// 🟢 2. แปลงข้อมูลเส้นกราฟ (Datasets) ให้ยืดหยุ่นตาม Metric และเฟสที่กดเลือก
+const chartSeries = computed(() => {
+  if (!allData.value || allData.value.length === 0) return []
+  
+  const metric = activeMetric.value as 'current' | 'voltage' | 'power'
+  
+  // กรองเฉพาะเฟสที่ระบบเลือกไว้ (activePhases) จากรายการเฟสทั้งหมด (PHASES)
+  return PHASES.filter((p: any) => activePhases.value.includes(p.id)).map((p: any) => {
+    return {
+      name: `เฟส ${p.id}`,
+      color: p.color,
+      // เจาะข้อมูลเข้าไปตาม Metric และเฟส เช่น d['current']['A']
+      data: allData.value.map((d: any) => d[metric]?.[p.id] || 0),
+      showArea: metric === 'power' // ถ้าเป็นเรื่องกำลังไฟ (kW) ให้เปิดแrเงาใต้กราฟสวยๆ
+    }
+  })
+})
 
 // กรอง sites ตามระดับข้อมูลส่งไปให้แผนที่แสดงผลหมุด
 const filteredSites = computed(() => {
@@ -42,14 +71,14 @@ const filteredSites = computed(() => {
   return allSites
 })
 
-// 🔥 ฟังก์ชันใหม่: อัปเดตพิกัดทันทีเมื่อเลือกใน Dropdown (แผนที่จะซูม Real-time ทันที)
+// ฟังก์ชัน: อัปเดตพิกัดทันทีเมื่อเลือกใน Dropdown
 function handleLocationUpdate(payload: { province: string; district: string; siteId: string }) {
   selectedProvince.value = payload.province
   selectedDistrict.value = payload.district
   selectedSiteId.value   = payload.siteId || null
 }
 
-// รับ event จาก EnergyFilter เมื่อกดปุ่ม "ดึงข้อมูล" (สำหรับอัปเดตกราฟและข้อมูล API)
+// รับ event จาก EnergyFilter เมื่อกดปุ่ม "ดึงข้อมูล"
 function handleFilter(payload: {
   province: string
   district: string
@@ -119,7 +148,12 @@ function onMapSelect(id: string) {
       </div>
 
       <div v-else class="chart-container-wrap">
-        <canvas id="historyLineChart" />
+        <UnifiedAnalysisChart 
+          :x-axis-data="chartXData" 
+          :datasets="chartSeries"
+          :show-zoom="true" 
+          :show-smooth="true"
+        />
       </div>
     </div>
 
