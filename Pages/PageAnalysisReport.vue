@@ -11,6 +11,7 @@ const {
   isLoading, hasGenerated, chartData,
   // computed
   transformerOptions, currentSeries, selectedTopicLabel,
+  chartLabels, echartsDatasets,
   // actions
   handleGenerate, handleExport,
 } = useAnalysisChart()
@@ -63,20 +64,24 @@ const {
 
         <div class="ar-chart-title">{{ selectedTopicLabel }}</div>
 
+        <!-- Legend — ยังใช้ component เดิม ส่ง currentSeries ตามปกติ -->
         <AnalysisChartLegend :series="currentSeries" />
 
-        <!-- Line chart: EV / PV / CU -->
+        <!-- Line chart: EV / PV / CU — ส่ง chartLabels + echartsDatasets -->
         <AnalysisLineChart
           v-if="selectedTopic !== 'loss'"
-          :series="currentSeries"
-          :chart-data="chartData"
+          :x-axis-data="chartLabels"
+          :datasets="echartsDatasets"
+          :show-zoom="true"
+          :show-smooth="true"
         />
 
-        <!-- Bar chart: Loss Non-Technical -->
+        <!-- Bar chart: Loss Non-Technical — ส่ง chartLabels + echartsDatasets -->
         <AnalysisBarChart
           v-else
-          :series="currentSeries"
-          :chart-data="chartData"
+          :x-axis-data="chartLabels"
+          :datasets="echartsDatasets"
+          :show-zoom="true"
         />
 
       </div>
@@ -87,61 +92,61 @@ const {
 
 <style scoped>
 .ar-page {
-  padding: 24px;
-  display: flex;
+  padding:        24px;
+  display:        flex;
   flex-direction: column;
-  gap: 16px;
-  min-height: 100%;
-  box-sizing: border-box;
+  gap:            16px;
+  min-height:     100%;
+  box-sizing:     border-box;
 }
 
 /* Header */
 .ar-header { display: flex; align-items: center; }
 .ar-title {
-  font-size: 20px;
+  font-size:   20px;
   font-weight: 700;
-  color: var(--color-text-1, #111827);
-  display: flex;
+  color:       var(--color-text-1, #111827);
+  display:     flex;
   align-items: center;
-  gap: 10px;
-  margin: 0;
+  gap:         10px;
+  margin:      0;
 }
 .ar-title-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: var(--color-primary, #1D9E75);
-  display: flex;
-  align-items: center;
+  width:           34px;
+  height:          34px;
+  border-radius:   8px;
+  background:      var(--color-primary, #1D9E75);
+  display:         flex;
+  align-items:     center;
   justify-content: center;
-  color: #fff;
-  font-size: 18px;
-  flex-shrink: 0;
+  color:           #fff;
+  font-size:       18px;
+  flex-shrink:     0;
 }
 
 /* Chart card */
 .ar-card {
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background:    var(--color-surface, #fff);
+  border:        1px solid var(--color-border, #e5e7eb);
   border-radius: 12px;
-  padding: 20px;
+  padding:       20px;
 }
-.ar-chart-card { display: flex; flex-direction: column; gap: 14px; }
+.ar-chart-card  { display: flex; flex-direction: column; gap: 14px; }
 .ar-chart-title {
-  font-size: 13px;
+  font-size:   13px;
   font-weight: 700;
-  color: var(--color-text-1, #111827);
+  color:       var(--color-text-1, #111827);
 }
 
 /* Empty */
 .ar-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
   justify-content: center;
-  padding: 60px 20px;
-  color: var(--color-text-2, #9ca3af);
-  gap: 12px;
+  padding:         60px 20px;
+  color:           var(--color-text-2, #9ca3af);
+  gap:             12px;
 }
 .ar-empty-icon { font-size: 48px; opacity: 0.35; }
 .ar-empty p    { font-size: 14px; margin: 0; }

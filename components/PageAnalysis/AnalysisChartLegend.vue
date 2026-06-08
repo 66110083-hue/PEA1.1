@@ -15,23 +15,23 @@ defineProps<{ series: Series[] }>()
 
 <style scoped>
 .legend {
-  display: flex;
+  display:   flex;
   flex-wrap: wrap;
-  gap: 14px;
-  row-gap: 8px;
+  gap:       14px;
+  row-gap:   8px;
 }
 .legend-item {
-  display: flex;
+  display:     flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--color-text-2, #6b7280);
+  gap:         5px;
+  font-size:   11px;
+  color:       var(--color-text-2, #6b7280);
 }
 .legend-dot {
-  width: 8px;
-  height: 8px;
+  width:        8px;
+  height:       8px;
   border-radius: 50%;
-  flex-shrink: 0;
+  flex-shrink:  0;
 }
 .legend-label { line-height: 1.3; }
 </style>
