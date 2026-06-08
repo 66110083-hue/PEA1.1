@@ -2,13 +2,19 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { allTransformers, allTransformerRealtime } from '@/composables/useSiteData'
 
 // ─────────────────────────────────────────────
-// Types (exported so components can import them)
+// Types
 // ─────────────────────────────────────────────
 export interface ChartPoint { time: string; [key: string]: number | string }
 export interface Series     { key: string; label: string; color: string; unit: string }
+export interface EChartsDataset {
+  name:     string
+  data:     number[]
+  color?:   string
+  showArea?: boolean
+}
 
 // ─────────────────────────────────────────────
-// Constants (exported so components can use them)
+// Constants
 // ─────────────────────────────────────────────
 export const TOPICS = [
   { value: 'ev',   label: 'Analysis EV'                               },
@@ -33,28 +39,22 @@ export const SERIES_CONFIG: Record<string, Series[]> = {
     { key: 'evEnergy',    label: 'EV: Electrical Consumption / Input (kWh)', color: '#8B5CF6', unit: 'kWh' },
   ],
   pv: [
-    { key: 'pvExportA', label: 'Current Phase A (A)',    color: '#E24B4A', unit: 'A'  },
-    { key: 'pvExportB', label: 'Current Phase B (A)',    color: '#3B82F6', unit: 'A'  },
-    { key: 'pvExportC', label: 'Current Phase C (A)',    color: '#10B981', unit: 'A'  },
-    { key: 'pvTotal',   label: 'Total Export Power (kW)',color: '#F59E0B', unit: 'kW' },
-    { key: 'pvBalance', label: 'Balance Power (kW)',     color: '#8B5CF6', unit: 'kW' },
+    { key: 'pvExportA', label: 'Current Phase A (A)',     color: '#E24B4A', unit: 'A'  },
+    { key: 'pvExportB', label: 'Current Phase B (A)',     color: '#3B82F6', unit: 'A'  },
+    { key: 'pvExportC', label: 'Current Phase C (A)',     color: '#10B981', unit: 'A'  },
+    { key: 'pvTotal',   label: 'Total Export Power (kW)', color: '#F59E0B', unit: 'kW' },
+    { key: 'pvBalance', label: 'Balance Power (kW)',      color: '#8B5CF6', unit: 'kW' },
   ],
   cu: [
-    { key: 'currentA', label: 'Current Phase A (A)',   color: '#E24B4A', unit: 'A' },
-    { key: 'currentB', label: 'Current Phase B (A)',   color: '#3B82F6', unit: 'A' },
-    { key: 'currentC', label: 'Current Phase C (A)',   color: '#10B981', unit: 'A' },
+    { key: 'currentA', label: 'Current Phase A (A)',    color: '#E24B4A', unit: 'A' },
+    { key: 'currentB', label: 'Current Phase B (A)',    color: '#3B82F6', unit: 'A' },
+    { key: 'currentC', label: 'Current Phase C (A)',    color: '#10B981', unit: 'A' },
     { key: 'negSeq',   label: 'Negative Sequence (%)', color: '#F59E0B', unit: '%' },
   ],
   loss: [
     { key: 'importEnergy', label: 'Non-Technical Loss (kWh)', color: '#F59E0B', unit: 'kWh' },
   ],
 }
-
-// SVG canvas dimensions (shared across chart components)
-export const CW    = 900
-export const CH    = 200
-export const MINI_H = 56
-export const PAD   = { top: 12, right: 20, bottom: 28, left: 58 }
 
 // ─────────────────────────────────────────────
 // Composable
@@ -82,6 +82,21 @@ export function useAnalysisChart() {
 
   const selectedTopicLabel = computed(
     () => TOPICS.find(t => t.value === selectedTopic.value)?.label ?? ''
+  )
+
+  /** Array of time strings สำหรับ xAxis ของ ECharts */
+  const chartLabels = computed<string[]>(
+    () => chartData.value.map(d => d.time as string)
+  )
+
+  /** Dataset format ที่ AnalysisLineChart / AnalysisBarChart รับ */
+  const echartsDatasets = computed<EChartsDataset[]>(() =>
+    currentSeries.value.map(s => ({
+      name:     s.label,
+      color:    s.color,
+      showArea: selectedTopic.value !== 'loss',
+      data:     chartData.value.map(d => d[s.key] as number),
+    }))
   )
 
   // ── Init ───────────────────────────────────
@@ -167,74 +182,6 @@ export function useAnalysisChart() {
     URL.revokeObjectURL(url)
   }
 
-  // ── SVG helpers ────────────────────────────
-  function minMax(key: string) {
-    const vals = chartData.value.map(p => p[key] as number).filter(v => !isNaN(v))
-    const min  = Math.min(...vals)
-    const max  = Math.max(...vals)
-    return { min, max: max === min ? max + 1 : max }
-  }
-
-  function toX(i: number, total = chartData.value.length) {
-    return PAD.left + (i / (total - 1)) * (CW - PAD.left - PAD.right)
-  }
-
-  function toY(val: number, min: number, max: number) {
-    return PAD.top + (1 - (val - min) / (max - min)) * (CH - PAD.top - PAD.bottom)
-  }
-
-  function linePath(key: string) {
-    const { min, max } = minMax(key)
-    return chartData.value
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p[key] as number, min, max).toFixed(1)}`)
-      .join(' ')
-  }
-
-  function areaPath(key: string) {
-    const { min, max } = minMax(key)
-    const bottom = CH - PAD.bottom
-    const pts    = chartData.value
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p[key] as number, min, max).toFixed(1)}`)
-      .join(' ')
-    const last = toX(chartData.value.length - 1)
-    return `${pts} L${last.toFixed(1)},${bottom} L${toX(0).toFixed(1)},${bottom} Z`
-  }
-
-  function xLabels() {
-    const step = Math.max(1, Math.floor(chartData.value.length / 8))
-    return chartData.value
-      .filter((_, i) => i % step === 0)
-      .map((p, idx) => ({ x: toX(idx * step), label: p.time as string }))
-  }
-
-  function yLabels(key: string, steps = 4) {
-    const { min, max } = minMax(key)
-    return Array.from({ length: steps + 1 }, (_, i) => {
-      const val = min + ((max - min) / steps) * i
-      return { y: toY(val, min, max), label: val.toFixed(1) }
-    })
-  }
-
-  function miniPath(key: string) {
-    const { min, max } = minMax(key)
-    const sPad = { top: 4, bottom: 4 }
-    const toMY = (v: number) =>
-      sPad.top + (1 - (v - min) / (max - min)) * (MINI_H - sPad.top - sPad.bottom)
-    return chartData.value
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toMY(p[key] as number).toFixed(1)}`)
-      .join(' ')
-  }
-
-  function buildBars(key: string) {
-    const vals = chartData.value.map(p => p[key] as number)
-    const max  = Math.max(...vals) || 1
-    const bw   = Math.max(1, (CW - PAD.left - PAD.right) / vals.length - 1)
-    return vals.map((v, i) => {
-      const h = (v / max) * (CH - PAD.top - PAD.bottom)
-      return { x: PAD.left + i * (bw + 1), y: CH - PAD.bottom - h, w: bw, h }
-    })
-  }
-
   // ── Return ─────────────────────────────────
   return {
     // state
@@ -242,9 +189,8 @@ export function useAnalysisChart() {
     startDate, endDate, isLoading, hasGenerated, chartData,
     // computed
     transformerOptions, currentSeries, selectedTopicLabel,
+    chartLabels, echartsDatasets,
     // actions
     handleGenerate, handleExport,
-    // svg helpers
-    linePath, areaPath, xLabels, yLabels, miniPath, buildBars,
   }
 }

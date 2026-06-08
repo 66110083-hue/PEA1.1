@@ -1,117 +1,106 @@
 <script setup lang="ts">
-import type { Series, ChartPoint } from '@/composables/useAnalysisChart'
-import { CW, CH, MINI_H, PAD } from '@/composables/useAnalysisChart'
+import { computed } from 'vue'
 
 // ── Props ──────────────────────────────────────────────────
 const props = defineProps<{
-  series:    Series[]
-  chartData: ChartPoint[]
+  xAxisData: string[]
+  datasets:  { name: string; data: number[]; color?: string }[]
+  showZoom?: boolean
 }>()
 
-// ── SVG helpers ────────────────────────────────────────────
-function minMax(key: string) {
-  const vals = props.chartData.map(p => p[key] as number).filter(v => !isNaN(v))
-  const min  = Math.min(...vals)
-  const max  = Math.max(...vals)
-  return { min, max: max === min ? max + 1 : max }
-}
+// ── ECharts option ─────────────────────────────────────────
+const chartOption = computed(() => ({
+  tooltip: {
+    trigger:         'axis',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth:     1,
+    borderColor:     '#e5e7eb',
+    textStyle:       { color: '#1f2937', fontSize: 12 },
+    axisPointer:     { type: 'shadow' },
+  },
 
-function toX(i: number) {
-  return PAD.left + (i / (props.chartData.length - 1)) * (CW - PAD.left - PAD.right)
-}
+  // legend ปิดไว้ เพราะใช้ AnalysisChartLegend.vue แทน
+  legend: { show: false },
 
-function toY(val: number, min: number, max: number) {
-  return PAD.top + (1 - (val - min) / (max - min)) * (CH - PAD.top - PAD.bottom)
-}
+  grid: {
+    left:         '1%',
+    right:        '2%',
+    bottom:       props.showZoom ? '15%' : '6%',
+    top:          '6%',
+    containLabel: true,
+  },
 
-function xLabels() {
-  const step = Math.max(1, Math.floor(props.chartData.length / 8))
-  return props.chartData
-    .filter((_, i) => i % step === 0)
-    .map((p, idx) => ({ x: toX(idx * step), label: p.time as string }))
-}
+  xAxis: {
+    type:      'category',
+    data:      props.xAxisData,
+    axisLine:  { lineStyle: { color: '#d1d5db' } },
+    axisTick:  { show: false },
+    axisLabel: { color: '#9ca3af', fontSize: 11 },
+  },
 
-function yLabels(key: string, steps = 4) {
-  const { min, max } = minMax(key)
-  return Array.from({ length: steps + 1 }, (_, i) => {
-    const val = min + ((max - min) / steps) * i
-    return { y: toY(val, min, max), label: val.toFixed(1) }
-  })
-}
+  yAxis: {
+    type:      'value',
+    axisLine:  { show: false },
+    axisTick:  { show: false },
+    splitLine: { lineStyle: { type: 'dashed', color: '#f3f4f6' } },
+    axisLabel: { color: '#9ca3af', fontSize: 11 },
+  },
 
-function buildBars(key: string) {
-  const vals = props.chartData.map(p => p[key] as number)
-  const max  = Math.max(...vals) || 1
-  const bw   = Math.max(1, (CW - PAD.left - PAD.right) / vals.length - 1)
-  return vals.map((v, i) => {
-    const h = (v / max) * (CH - PAD.top - PAD.bottom)
-    return { x: PAD.left + i * (bw + 1), y: CH - PAD.bottom - h, w: bw, h }
-  })
-}
+  dataZoom: props.showZoom
+    ? [
+        {
+          type:            'slider',
+          start:           0,
+          end:             100,
+          height:          20,
+          bottom:          4,
+          borderColor:     'transparent',
+          backgroundColor: '#f3f4f6',
+          fillerColor:     'rgba(29, 158, 117, 0.12)',
+          handleStyle:     { color: '#1D9E75', borderColor: '#1D9E75' },
+          textStyle:       { color: '#9ca3af', fontSize: 10 },
+          moveHandleSize:  0,
+        },
+        { type: 'inside' },
+      ]
+    : [],
+
+  series: props.datasets.map(s => ({
+    name:        s.name,
+    type:        'bar',
+    data:        s.data,
+    barMaxWidth: 20,
+    itemStyle:   {
+      color:        s.color,
+      borderRadius: [3, 3, 0, 0],
+    },
+    emphasis: {
+      itemStyle: {
+        color:   s.color,
+        opacity: 0.85,
+      },
+    },
+  })),
+}))
 </script>
 
 <template>
-  <!-- Main bar chart -->
-  <div class="svg-wrap">
-    <svg :viewBox="`0 0 ${CW} ${CH}`" class="svg" preserveAspectRatio="none">
-
-      <!-- Grid + Y labels -->
-      <g v-for="yl in yLabels(series[0].key)" :key="`g-${yl.label}`">
-        <line
-          :x1="PAD.left" :y1="yl.y" :x2="CW - PAD.right" :y2="yl.y"
-          stroke="#e5e7eb" stroke-width="0.5" stroke-dasharray="4 4"
-        />
-        <text :x="PAD.left - 5" :y="yl.y + 4"
-          text-anchor="end" font-size="9" fill="#9ca3af">
-          {{ yl.label }}
-        </text>
-      </g>
-
-      <!-- Bars -->
-      <rect
-        v-for="(bar, i) in buildBars(series[0].key)"
-        :key="i"
-        :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h"
-        :fill="series[0].color"
-        opacity="0.75"
-      />
-
-      <!-- X labels -->
-      <text
-        v-for="xl in xLabels()" :key="`x-${xl.label}`"
-        :x="xl.x" :y="CH - 6"
-        text-anchor="middle" font-size="8" fill="#9ca3af"
-      >{{ xl.label }}</text>
-
-    </svg>
-  </div>
-
-  <!-- Mini sparkline bars -->
-  <div class="svg-wrap svg-mini">
-    <svg :viewBox="`0 0 ${CW} ${MINI_H}`" class="svg" preserveAspectRatio="none">
-      <rect
-        v-for="(bar, i) in buildBars(series[0].key)"
-        :key="i"
-        :x="bar.x"
-        :y="MINI_H - bar.h * 0.28"
-        :width="bar.w"
-        :height="bar.h * 0.28"
-        :fill="series[0].color"
-        opacity="0.5"
-      />
-    </svg>
+  <div class="bar-chart-wrap">
+    <v-chart class="echart" :option="chartOption" autoresize />
   </div>
 </template>
 
 <style scoped>
-.svg-wrap {
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
-  border: 1px solid var(--color-border, #f3f4f6);
+.bar-chart-wrap {
+  width:         100%;
+  height:        300px;
+  border:        1px solid var(--color-border, #f3f4f6);
   border-radius: 8px;
-  background: var(--color-bg, #fafafa);
+  background:    var(--color-surface, #fff);
+  overflow:      hidden;
 }
-.svg-mini { height: 56px; }
-.svg      { width: 100%; height: 100%; display: block; }
+.echart {
+  width:  100%;
+  height: 100%;
+}
 </style>
