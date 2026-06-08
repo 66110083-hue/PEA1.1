@@ -23,7 +23,6 @@ export function useDashboard(options: DashboardOptions = {}) {
 
   const { PHASES, activePhases } = usePhaseSelection()
 
-  // ใช้ useEnergyData ตัวเดียวทั้งระบบ
   const {
     allData,
     isLoading,
@@ -36,10 +35,9 @@ export function useDashboard(options: DashboardOptions = {}) {
     selectedTransformerId,
     realtimeSnapshot,
     seedFromRealtime,
-
   } = useEnergyData(activeMetric, activePhases, PHASES)
 
-  const { init, refreshChart } = useEnergyChart(
+  const { refreshChart } = useEnergyChart(
     'historyLineChart',
     allData,
     activeMetric,
@@ -48,11 +46,10 @@ export function useDashboard(options: DashboardOptions = {}) {
   )
 
   // ─────────────────────────────────────────────
-  // handleFilter async function ที่ใช้ดึงข้อมูลตามตัวกรองต่างๆ (เช่น transformerId) และอัพเดต chart
-  // async คือฟังก์ชันที่ทำงานแบบอะซิงโครนัส สามารถใช้ await เพื่อรอผลลัพธ์จากการเรียก API หรือการประมวลผลที่ใช้เวลานานได้
+  // 🟢 ปรับปรุง handleFilter เพื่อรองรับชุด filter ใหม่ (รับ siteId)
   // ─────────────────────────────────────────────
   const handleFilter = async (
-    filter: any = {}, // 🟢 เปลี่ยนมารับค่า filter จากหน้าจอ
+    filter: any = {}, 
     transformerId?: string,
   ) => {
 
@@ -60,42 +57,44 @@ export function useDashboard(options: DashboardOptions = {}) {
       selectedTransformerId.value = transformerId
     }
 
+    // 🟢 บันทึกไอดีไซน์เข้า useEnergyData เพื่อทำลายล้างสถานะเดิมให้ผูกกับไซน์ใหม่
+    if (filter.siteId) {
+      selectedSiteId.value = filter.siteId
+    }
+
     isLoading.value = true
     seedFromRealtime()
 
-    // จำลอง delay ในการโหลดข้อมูลจริงจาก API
+    // จำลองดีเลย์การรอดึงข้อมูลจากเซิร์ฟเวอร์
     await new Promise(r => setTimeout(r, 600))
 
-    // 🟢 1. ดึงวันที่จาก filter (ถ้าไม่มีให้ใช้วันนี้เป็นค่าเริ่มต้น)
-   // 🟢 1. ดึงวันที่จาก filter
+    // ดึงวันที่จาก filter
     const startDateStr = filter.startDate || new Date().toISOString().split('T')[0]
     const endDateStr = filter.endDate || new Date().toISOString().split('T')[0]
 
-    // 🟢 2. แปลงเป็น Timestamp
+    // แปลงข้อมูลเป็น Timestamp
     const startTime = new Date(`${startDateStr}T00:00:00`).getTime()
     let endTime = new Date(`${endDateStr}T23:59:59`).getTime()
 
     const currentTime = new Date().getTime()
     if (endTime > currentTime) {
-      endTime = currentTime // ดักไม่ให้ทะลุไปอนาคต
+      endTime = currentTime // ป้องกันเวลาพุ่งล้นไปยังอนาคต
     }
 
     if (endTime <= startTime) {
       endTime = startTime + (10 * 60 * 1000)
     }
 
-    // 🔥 3. สิ่งที่เปลี่ยน: กำหนดระยะห่างเป็น 10 นาทีเป๊ะๆ (10 นาที * 60 วินาที * 1000 มิลลิวินาที)
+    // กำหนดระยะห่างของจุดข้อมูลเป็นทุกๆ 10 นาทีเป๊ะๆ
     const intervalMs = 10 * 60 * 1000 
     
-    // คำนวณว่าช่วงเวลาที่เลือก จะมีทั้งหมดกี่จุด (เช่น 1 วัน = 144 จุด)
+    // คำนวณจำนวนจุดของขอบเขตช่วงวันที่ที่ทำการดึงค่า
     const pointCount = Math.floor((endTime - startTime) / intervalMs) + 1
 
     const rnd = (b: number, r: number) => +(b + (Math.random() - 0.5) * r).toFixed(1)
 
-    // 🔥 4. สร้าง Array ตามจำนวนจุดที่คำนวณได้
+    // สร้างข้อมูล Array จำลองกราฟตามมิติเวลาจริง
     allData.value = Array.from({ length: pointCount }, (_, i) => {
-      
-      // เวลาของแต่ละจุด = เวลาเริ่มต้น + (จำนวนรอบ * 10 นาที)
       const t = new Date(startTime + (i * intervalMs))
 
       const dd = String(t.getDate()).padStart(2, '0')
@@ -104,9 +103,8 @@ export function useDashboard(options: DashboardOptions = {}) {
       const min = String(t.getMinutes()).padStart(2, '0')
 
       return {
-        label: `${dd}/${mm} ${HH}:${min}`, // จะออกมาเป็น xx/xx 00:00, 00:10, 00:20 แน่นอน
+        label: `${dd}/${mm} ${HH}:${min}`,
         timestamp: t,
-
         current: {
           A: rnd(60, 8),
           B: rnd(62, 7),
@@ -129,46 +127,32 @@ export function useDashboard(options: DashboardOptions = {}) {
     hasData.value   = true
 
     await nextTick()
-    // init()
-    // refreshChart()
   }
 
-  // ─────────────────────────────────────────────
-  // mounted
-  // ─────────────────────────────────────────────
   onMounted(() => {
-
-    // ถ้ามี transformer ส่งมาให้โหลดทันที
     if (options.transformerId) {
-
-      selectedTransformerId.value =
-        options.transformerId
-
+      selectedTransformerId.value = options.transformerId
       setTimeout(() => {
         handleFilter({}, options.transformerId)
       }, 150)
-
-    } else {
-
-      ////setTimeout(() => init(), 150)
     }
 
-    // auto refresh ทุก 10 นาที
+    // Auto Refresh ข้อมูลอัตโนมัติเมื่อครบกำหนดรอบทุก 10 นาที
     autoRefreshTimer = setInterval(() => {
-
       if (allData.value.length > 0) {
-        handleFilter()
+        handleFilter({
+          siteId: selectedSiteId.value,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0]
+        })
       }
-
     }, 10 * 60 * 1000)
   })
 
   onUnmounted(() => {
-
     if (autoRefreshTimer) {
       clearInterval(autoRefreshTimer)
     }
-
   })
 
   watch(
@@ -177,33 +161,21 @@ export function useDashboard(options: DashboardOptions = {}) {
   )
 
   return {
-
     activeMetric,
     activePhases,
-
     hasData,
     isLoading,
-
     PHASES,
     METRIC_TABS,
-
     allData,
-
     latest,
     statistics,
     balanceData,
-
     unit,
     lastUpdateText,
-
-    // ของเดิม
     selectedSiteId,
-
-    // ของใหม่
     selectedTransformerId,
     realtimeSnapshot,
-
     handleFilter,
-    
   }
 }
