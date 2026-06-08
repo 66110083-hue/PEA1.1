@@ -42,13 +42,13 @@ const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overv
 // =========================
 const navMain = [
   { to: 'overview',    label: 'ภาพรวม',         icon: 'ti-layout-dashboard' },
-  { to: 'dashboard',   label: 'แดชบอร์ดใหม่',    icon: 'ti-chart-bar'        },
+ //// { to: 'dashboard',   label: 'แดชบอร์ดใหม่',    icon: 'ti-chart-bar'        },
   { to: 'transformer', label: 'จัดการหม้อแปลง',  icon: 'ti-bolt'             },
   { to: 'alerts',      label: 'การแจ้งเตือน',     icon: 'ti-bell-ringing'     },
 ]
 
 const navAnalysis = [
-  { to: 'history',   label: 'ข้อมูลย้อนหลัง', icon: 'ti-history'    },
+ /// { to: 'history',   label: 'ข้อมูลย้อนหลัง', icon: 'ti-history'    },
   { to: 'analysis',  label: 'รายงานวิเคราะห์', icon: 'ti-chart-line' }, // ← เพิ่มใหม่
   { to: 'breakeven', label: 'จุดคุ้มทุน',      icon: 'ti-calculator' },
 ]
@@ -63,9 +63,9 @@ const navSystem = [
 const pageMap: Record<string, any> = {
   login:       defineAsyncComponent(() => import('~/Pages/PageLogin.vue')),
   overview:    defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
-  dashboard:   defineAsyncComponent(() => import('~/Pages/PageDashboard.vue')),
+ //// dashboard:   defineAsyncComponent(() => import('~/Pages/PageDashboard.vue')),
   alerts:      defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
-  history:     defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
+ /// history:     defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
   analysis:    defineAsyncComponent(() => import('~/Pages/PageAnalysisReport.vue')), // ← เพิ่มใหม่
   breakeven:   defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
   settings:    defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
