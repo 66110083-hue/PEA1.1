@@ -1,99 +1,89 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted } from 'vue'
 import { useDashboard, METRIC_TABS } from '~/composables/useDashboard.ts'
 import { useSiteData } from '~/composables/useSiteData'
 import '~/assets/css/dashboard-compact.css'
-import PhaseCard     from '~/components/PageOverview/PhaseCard.vue'
-import EnergyFilter  from '~/components/PageOverview/EnergyFilter.vue'
-import PhaseSelector from '~/components/PageOverview/PhaseSelector.vue'
 
-// Import Component กราฟ ECharts
+// Import Components ของหน้า Dashboard
+import PhaseCard      from '~/components/PageOverview/PhaseCard.vue'
+import EnergyFilter   from '~/components/PageOverview/EnergyFilter.vue'
+import PhaseSelector  from '~/components/PageOverview/PhaseSelector.vue'
 import UnifiedAnalysisChart from '~/components/Common/UnifiedAnalysisChart.vue'
 
+// Import แผนที่แบบ Async (เพื่อป้องกันปัญหา Window is not defined บน Nuxt/SSR)
 const SiteMap = defineAsyncComponent(() =>
   import('~/components/Page map/SiteMap.vue')
 )
 
-// ดึงข้อมูลและ State ทั้งหมดออกมาจาก useDashboard
+// 1. ดึง State ของกราฟและข้อมูลการใช้พลังงานมาจาก useDashboard
 const {
   activeMetric, activePhases,
   hasData, isLoading,
   PHASES, latest, statistics, balanceData, unit, lastUpdateText,
   handleFilter: apiFilter,
-  allData // 🟢 ดึงข้อมูลดิบย้อนหลัง 1,000 จุดออกมาใช้งานตรงนี้
+  allData
 } = useDashboard()
 
-const { allSites } = useSiteData()
+// 2. ดึง State ของตำแหน่งไซต์ทั้งหมดจาก API
+const { allSites, fetchSites } = useSiteData()
 
-// ── state ที่ใช้ร่วมกันระหว่าง EnergyFilter ↔ SiteMap ──
-const selectedProvince = ref('')
-const selectedDistrict = ref('')
-const selectedSiteId   = ref<string | null>(null)
+// State กลางสำหรับเก็บ ID ไซต์ที่ผู้ใช้เลือก (ไม่มีจังหวัดและอำเภอแล้ว)
+const selectedSiteId = ref<string | null>(null)
 
-// 🟢 1. แปลงข้อมูลแกน X (เวลา) ออกมาจากข้อมูลดิบ 1,000 จุด
-const chartXData = computed(() => {
-  if (!allData.value) return []
-  return allData.value.map((d: any) => d.label) // ผลลัพธ์จะเป็นพวก ['12:00', '12:10', ...]
+// 3. โหลดข้อมูลจุดติดตั้งบนแผนที่ทันทีที่เปิดหน้านี้
+onMounted(() => {
+  fetchSites()
 })
 
-// 🟢 2. แปลงข้อมูลเส้นกราฟ (Datasets) ให้ยืดหยุ่นตาม Metric และเฟสที่กดเลือก
+// ─── การคำนวณและเตรียมข้อมูลสำหรับ ECharts ─────────────────────────
+
+// สร้างข้อมูลแกน X (เวลา)
+const chartXData = computed(() => {
+  if (!allData.value) return []
+  return allData.value.map((d: any) => d.label)
+})
+
+// สร้างข้อมูลแกน Y (เส้นกราฟตามเฟสและประเภทข้อมูล)
 const chartSeries = computed(() => {
   if (!allData.value || allData.value.length === 0) return []
-  
   const metric = activeMetric.value as 'current' | 'voltage' | 'power'
   
-  // กรองเฉพาะเฟสที่ระบบเลือกไว้ (activePhases) จากรายการเฟสทั้งหมด (PHASES)
   return PHASES.filter((p: any) => activePhases.value.includes(p.id)).map((p: any) => {
     return {
       name: `เฟส ${p.id}`,
       color: p.color,
-      // เจาะข้อมูลเข้าไปตาม Metric และเฟส เช่น d['current']['A']
       data: allData.value.map((d: any) => d[metric]?.[p.id] || 0),
-      showArea: metric === 'power' // ถ้าเป็นเรื่องกำลังไฟ (kW) ให้เปิดแrเงาใต้กราฟสวยๆ
+      showArea: metric === 'power' // เปิดแรเงาใต้กราฟถ้าเป็น Power
     }
   })
 })
 
-// กรอง sites ตามระดับข้อมูลส่งไปให้แผนที่แสดงผลหมุด
+// ─── การจัดการข้อมูลแผนที่ (SiteMap) ─────────────────────────────────
+
+// กรองหมุดที่จะแสดงบนแผนที่
 const filteredSites = computed(() => {
+  // ถ้ามีการเลือกไซต์ใดไซต์หนึ่ง ให้แสดงแค่หมุดนั้น
   if (selectedSiteId.value) {
     return allSites.filter(s => s.id === selectedSiteId.value)
   }
-  if (selectedDistrict.value) {
-    return allSites.filter(s =>
-      s.province === selectedProvince.value &&
-      s.district === selectedDistrict.value
-    )
-  }
-  if (selectedProvince.value) {
-    return allSites.filter(s => s.province === selectedProvince.value)
-  }
+  // ถ้าไม่ได้เลือก ให้แสดงหมุดทั้งหมดที่ได้จาก API
   return allSites
 })
 
-// ฟังก์ชัน: อัปเดตพิกัดทันทีเมื่อเลือกใน Dropdown
-function handleLocationUpdate(payload: { province: string; district: string; siteId: string }) {
-  selectedProvince.value = payload.province
-  selectedDistrict.value = payload.district
-  selectedSiteId.value   = payload.siteId || null
+// รับ Event จาก EnergyFilter เมื่อเปลี่ยนค่า Dropdown
+function handleLocationUpdate(payload: { siteId: string }) {
+  selectedSiteId.value = payload.siteId || null
 }
 
-// รับ event จาก EnergyFilter เมื่อกดปุ่ม "ดึงข้อมูล"
-function handleFilter(payload: {
-  province: string
-  district: string
-  siteId: string
-  date: string
-}) {
-  selectedProvince.value = payload.province
-  selectedDistrict.value = payload.district
-  selectedSiteId.value   = payload.siteId || null
-  
-  apiFilter(payload)
+// รับ Event จาก EnergyFilter เมื่อกดปุ่ม "ดึงข้อมูล"
+function handleFilter(payload: { siteId: string; startDate: string; endDate: string }) {
+  selectedSiteId.value = payload.siteId || null
+  apiFilter(payload) // ส่ง Payload ข้ามไปให้ Dashboard คำนวณกราฟ
 }
 
-// รับ event จาก SiteMap เมื่อคลิก marker บนแผนที่
+// รับ Event จาก SiteMap เมื่อคลิกที่หมุดบนแผนที่
 function onMapSelect(id: string) {
+  // กดซ้ำเพื่อยกเลิก หรือกดเพื่อเลือกหมุด
   selectedSiteId.value = selectedSiteId.value === id ? null : id
 }
 </script>
@@ -106,8 +96,7 @@ function onMapSelect(id: string) {
         <PhaseCard
           v-for="ph in PHASES" :key="ph.id"
           v-bind="latest[ph.id]"
-          :phase="ph.id"
-          :color="ph.color"
+          :phase="ph.id" :color="ph.color"
           :label="`ค่าล่าสุด (${lastUpdateText})`"
         />
       </div>
@@ -119,9 +108,11 @@ function onMapSelect(id: string) {
           <i class="ti ti-chart-line text-green" />
           <span>ข้อมูลย้อนหลัง</span>
         </div>
+        
         <div class="controls-group">
           <EnergyFilter 
             :loading="isLoading" 
+            :init-site-id="selectedSiteId || ''"
             @apply="handleFilter" 
             @update:location="handleLocationUpdate"
           />
@@ -139,12 +130,12 @@ function onMapSelect(id: string) {
       <div v-if="!hasData && !isLoading" class="empty-state">
         <i class="ti ti-map-pin" style="font-size:32px;color:var(--color-text-3)" />
         <div style="font-weight:500;color:var(--color-text-2)">เลือกจุดติดตั้งและวันที่</div>
-        <div style="font-size:12px;color:var(--color-text-3)">แล้วกด "ดึงข้อมูล" เพื่อแสดงผล</div>
+        <div style="font-size:12px;color:var(--color-text-3)">แล้วกด "ดึงข้อมูล" เพื่อแสดงผลกราฟ</div>
       </div>
 
       <div v-else-if="isLoading" class="empty-state">
-        <i class="ti ti-loader-2" style="font-size:32px;color:var(--color-green);animation:spin 1s linear infinite" />
-        <div style="color:var(--color-text-2)">กำลังดึงข้อมูล 1,000 จุด...</div>
+        <i class="ti ti-loader-2 spin-icon" style="font-size:32px;color:var(--color-green);" />
+        <div style="color:var(--color-text-2)">กำลังดึงข้อมูล...</div>
       </div>
 
       <div v-else class="chart-container-wrap">
@@ -159,11 +150,12 @@ function onMapSelect(id: string) {
 
     <template v-if="hasData">
       <div class="equal-height-row">
+        
         <div class="card dashboard-card">
           <div class="card-inner">
             <div class="card-title mb-4">
               <i class="ti ti-calculator text-blue" />
-              <span>สถิติจาก 1,000 จุด</span>
+              <span>สถิติประมวลผล</span>
             </div>
             <div class="card-body-content">
               <div v-for="s in statistics" :key="s.label" class="stats-row-custom">
@@ -198,6 +190,7 @@ function onMapSelect(id: string) {
             </div>
           </div>
         </div>
+
       </div>
     </template>
 
@@ -205,11 +198,19 @@ function onMapSelect(id: string) {
       <SiteMap
         :sites="filteredSites"
         :selected-site-id="selectedSiteId"
-        :selected-province="selectedProvince" 
-        :selected-district="selectedDistrict" 
         @select="onMapSelect"
       />
     </ClientOnly>
 
   </div>
 </template>
+
+<style scoped>
+/* เพิ่มคลาสนี้ป้องกันกรณีไม่ได้ประกาศแอนิเมชัน spin ไว้ที่ไฟล์ global */
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+</style>
