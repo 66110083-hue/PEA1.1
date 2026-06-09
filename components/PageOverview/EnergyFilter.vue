@@ -2,53 +2,55 @@
 import { ref, watch } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
 
-// ลบ props ของ จังหวัดและอำเภอออก เหลือแค่ Site ID
-const props = defineProps<{ 
-  loading?: boolean 
+const props = defineProps<{
+  loading?: boolean
   initSiteId?: string
 }>()
 
 const emit = defineEmits(['apply', 'update:location'])
 
-// ดึงแค่ allSites มาใช้ (เพราะเราไม่ต้องกรองด้วยจังหวัด/อำเภอแล้ว)
 const { allSites } = useSiteData()
 
-// States สำหรับการเลือก
 const selectedSiteId = ref(props.initSiteId || '')
 
-// วันที่เริ่มต้น และ วันที่สิ้นสุด (Default เป็นวันปัจจุบัน)
-const startDate = ref(new Date().toISOString().split('T')[0])
-const endDate = ref(new Date().toISOString().split('T')[0])
+// เก็บเป็น Date object สำหรับ VDatePicker
+const startDate = ref(new Date())
+const endDate   = ref(new Date())
 
-// ผูกตัวแปรเฝ้าดูถ้าระบบหลักมีการส่งค่าเก่ากลับมา (เช่น หลังกดย้อนกลับ)
+// แปลง Date → YYYY-MM-DD สำหรับ emit
+const toISO = (d: Date) => d.toISOString().split('T')[0]
+
 watch(() => props.initSiteId, (val) => { selectedSiteId.value = val || '' })
 
-// ดักจับเมื่อมีการเปลี่ยนไซต์ เพื่อส่งค่าไปให้แผนที่ซูมทันทีแบบ Real-time
 watch(selectedSiteId, () => {
-  emit('update:location', {
-    siteId: selectedSiteId.value
-  })
+  emit('update:location', { siteId: selectedSiteId.value })
 })
 
-// ส่งค่า Site ID และช่วงวันที่ออกไปให้ PageOverview ดึงข้อมูล
 const handleApply = () => {
   if (!selectedSiteId.value) {
     alert('กรุณาเลือกจุดติดตั้งก่อนดึงข้อมูล')
     return
   }
-  
   emit('apply', {
     siteId: selectedSiteId.value,
-    startDate: startDate.value,
-    endDate: endDate.value
+    startDate: toISO(startDate.value),
+    endDate:   toISO(endDate.value)
   })
+}
+
+// config ภาษาไทย
+const calendarLocale = {
+  id: 'th',
+  firstDayOfWeek: 2, // วันจันทร์เป็นวันแรก
+  masks: { input: 'DD/MM/YYYY' },
 }
 </script>
 
 <template>
   <div class="filter-container">
     <div class="filter-group">
-      
+
+      <!-- จุดติดตั้ง -->
       <div class="select-wrapper">
         <label>จุดติดตั้ง</label>
         <select v-model="selectedSiteId" class="form-select-sm">
@@ -59,21 +61,41 @@ const handleApply = () => {
         </select>
       </div>
 
+      <!-- วันที่เริ่มต้น -->
       <div class="select-wrapper">
         <label>วันที่เริ่มต้น</label>
-        <input type="date" v-model="startDate" class="form-control-sm" />
+        <VDatePicker
+          v-model="startDate"
+          :locale="calendarLocale"
+          :max-date="endDate"
+        >
+          <template #default="{ inputValue, togglePopover }">
+            <div class="date-input-wrapper" @click="togglePopover">
+              <span class="date-input-text">{{ inputValue }}</span>
+              <i class="ti ti-calendar date-icon"></i>
+            </div>
+          </template>
+        </VDatePicker>
       </div>
 
+      <!-- วันที่สิ้นสุด -->
       <div class="select-wrapper">
         <label>วันที่สิ้นสุด</label>
-        <input type="date" v-model="endDate" class="form-control-sm" :min="startDate" />
+        <VDatePicker
+          v-model="endDate"
+          :locale="calendarLocale"
+          :min-date="startDate"
+        >
+          <template #default="{ inputValue, togglePopover }">
+            <div class="date-input-wrapper" @click="togglePopover">
+              <span class="date-input-text">{{ inputValue }}</span>
+              <i class="ti ti-calendar date-icon"></i>
+            </div>
+          </template>
+        </VDatePicker>
       </div>
 
-      <button 
-        class="btn-apply" 
-        :disabled="loading" 
-        @click="handleApply"
-      >
+      <button class="btn-apply" :disabled="loading" @click="handleApply">
         <i v-if="loading" class="ti ti-loader-2 spin"></i>
         <i v-else class="ti ti-filter"></i>
         ดึงข้อมูล
@@ -105,13 +127,34 @@ const handleApply = () => {
   color: var(--color-text-muted);
   font-weight: 600;
 }
-.form-select-sm, .form-control-sm {
+.form-select-sm {
   padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
   font-size: 13px;
   background-color: var(--color-surface-2);
   min-width: 140px;
+}
+.date-input-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+  font-size: 13px;
+  min-width: 140px;
+  cursor: pointer;
+  user-select: none;
+}
+.date-input-wrapper:hover {
+  border-color: var(--color-green);
+}
+.date-icon {
+  color: var(--color-text-muted);
+  font-size: 15px;
 }
 .btn-apply {
   background: var(--color-green);
