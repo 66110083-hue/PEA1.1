@@ -196,7 +196,7 @@ function onMapSelect(id: string) {
 
     <ClientOnly>
       <SiteMap
-        :sites="filteredSites"
+        :sites="allSites"
         :selected-site-id="selectedSiteId"
         @select="onMapSelect"
       />

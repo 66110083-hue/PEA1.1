@@ -1,4 +1,10 @@
 export default defineNuxtConfig({
+  // เพิ่มส่วน devServer เข้ามาเพื่อให้มือถือในวง Wi-Fi เดียวกันเข้ามาดูได้
+  devServer: {
+    host: '0.0.0.0', 
+    port: 3000
+  },
+  
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
   app: {
@@ -23,5 +29,6 @@ export default defineNuxtConfig({
       ]
     }
   },
+  
   modules: []
 })
