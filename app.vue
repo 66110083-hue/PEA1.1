@@ -18,6 +18,13 @@ const showProfileMenu = ref(false)
 const clock           = ref('')
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
+// --- State สำหรับเก็บข้อมูล API Gateway ---
+const gatewayStatus = ref({
+  online: 0,
+  total: 0
+})
+let gatewayTimer: ReturnType<typeof setInterval> | null = null
+
 // =========================
 // Computed Properties
 // =========================
@@ -42,16 +49,12 @@ const pageComponent = computed(() => pageMap[currentPage.value] ?? pageMap.overv
 // =========================
 const navMain = [
   { to: 'overview',    label: 'ภาพรวม',         icon: 'ti-layout-dashboard' },
-  //{ to: 'dashboard',   label: 'แดชบอร์ดใหม่',    icon: 'ti-chart-bar'        },
- //// { to: 'dashboard',   label: 'แดชบอร์ดใหม่',    icon: 'ti-chart-bar'        },
   { to: 'transformer', label: 'จัดการหม้อแปลง',  icon: 'ti-bolt'             },
   { to: 'alerts',      label: 'การแจ้งเตือน',     icon: 'ti-bell-ringing'     },
 ]
 
 const navAnalysis = [
- /// { to: 'history',   label: 'ข้อมูลย้อนหลัง', icon: 'ti-history'    },
-  { to: 'analysis',  label: 'รายงานวิเคราะห์', icon: 'ti-chart-line' }, // ← เพิ่มใหม่
-  ///{ to: 'breakeven', label: 'จุดคุ้มทุน',      icon: 'ti-calculator' },
+  { to: 'analysis',  label: 'รายงานวิเคราะห์', icon: 'ti-chart-line' }, 
 ]
 
 const navSystem = [
@@ -64,11 +67,8 @@ const navSystem = [
 const pageMap: Record<string, any> = {
   login:       defineAsyncComponent(() => import('~/Pages/PageLogin.vue')),
   overview:    defineAsyncComponent(() => import('~/Pages/PageOverview.vue')),
- //// dashboard:   defineAsyncComponent(() => import('~/Pages/PageDashboard.vue')),
   alerts:      defineAsyncComponent(() => import('~/Pages/PageAlerts.vue')),
- /// history:     defineAsyncComponent(() => import('~/Pages/PageHistory.vue')),
-  analysis:    defineAsyncComponent(() => import('~/Pages/PageAnalysisReport.vue')), // ← เพิ่มใหม่
-  ///breakeven:   defineAsyncComponent(() => import('~/Pages/PageBreakeven.vue')),
+  analysis:    defineAsyncComponent(() => import('~/Pages/PageAnalysisReport.vue')), 
   settings:    defineAsyncComponent(() => import('~/Pages/PageSettings.vue')),
   transformer: defineAsyncComponent(() => import('~/Pages/PageTransformerManagement.vue')),
 }
@@ -97,12 +97,33 @@ function updateClock() {
   })
 }
 
+// --- ฟังก์ชันดึงสถานะ Gateway จาก API ---
+const fetchGatewayStatus = async () => {
+  try {
+    const response = await fetch('https://greatways.net/api/health')
+    const data = await response.json()
+    
+    // อัปเดตข้อมูล (แก้ไข data.online / data.total ตาม key จริงของ API)
+    gatewayStatus.value = {
+      online: data.online ?? 0,
+      total: data.total ?? 0
+    }
+  } catch (error) {
+    console.error('Failed to fetch gateway status:', error)
+  }
+}
+
 // =========================
 // Lifecycle Hooks
 // =========================
 onMounted(() => {
   updateClock()
   clockTimer = setInterval(updateClock, 1000)
+
+  // ดึงข้อมูล API ทันทีเมื่อโหลดหน้า
+  fetchGatewayStatus()
+  // ตั้งเวลาดึงข้อมูล API ซ้ำทุกๆ 1 นาที (60000 ms)
+  gatewayTimer = setInterval(fetchGatewayStatus, 60000)
 
   const saved = localStorage.getItem('isLoggedIn')
   if (saved === 'true') {
@@ -116,6 +137,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (clockTimer) clearInterval(clockTimer)
+  if (gatewayTimer) clearInterval(gatewayTimer) // เคลียร์ timer เพื่อป้องกัน memory leak
 })
 </script>
 
@@ -186,7 +208,8 @@ onBeforeUnmount(() => {
       <div class="topbar-right">
 
         <div class="status-badge">
-          <span class="status-dot"></span> Online 26/30
+          <span class="status-dot" :class="{ 'is-offline': gatewayStatus.online === 0 }"></span> 
+          Online {{ gatewayStatus.online }}/{{ gatewayStatus.total }}
         </div>
 
         <div class="clock-display">
@@ -342,4 +365,19 @@ onBeforeUnmount(() => {
 
 .summary-row.critical .summary-count { color: #E24B4A; }
 .summary-row.offline  .summary-count { color: #BA7517; }
-</style> 
+
+/* ── Status Badge Dot (เพิ่มเติมสำหรับให้ไฟเปลี่ยนสีได้) ───────────────────── */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10B981; /* สีเขียว */
+  display: inline-block;
+  margin-right: 6px;
+  transition: background-color 0.3s;
+}
+
+.status-dot.is-offline {
+  background-color: #EF4444; /* สีแดง */
+}
+</style>
