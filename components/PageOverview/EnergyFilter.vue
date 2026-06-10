@@ -22,9 +22,12 @@ const toISO = (d: Date) => d.toISOString().split('T')[0]
 
 watch(() => props.initSiteId, (val) => { selectedSiteId.value = val || '' })
 
-watch(selectedSiteId, () => {
-  emit('update:location', { siteId: selectedSiteId.value })
-})
+// 🟢 ฟังก์ชันนี้จะทำงานก็ต่อเมื่อ "คน" กดคลิกเปลี่ยน Dropdown เท่านั้น
+const onSelectChange = () => {
+  emit('update:location', {
+    siteId: selectedSiteId.value
+  })
+}
 
 const handleApply = () => {
   if (!selectedSiteId.value) {
@@ -50,10 +53,9 @@ const calendarLocale = {
   <div class="filter-container">
     <div class="filter-group">
 
-      <!-- จุดติดตั้ง -->
       <div class="select-wrapper">
         <label>จุดติดตั้ง</label>
-        <select v-model="selectedSiteId" class="form-select-sm">
+        <select v-model="selectedSiteId" class="form-select-sm" @change="onSelectChange">
           <option value="">-- เลือกจุดติดตั้ง --</option>
           <option v-for="s in allSites" :key="s.id" :value="s.id">
             [{{ s.id }}] {{ s.name }}
@@ -61,7 +63,6 @@ const calendarLocale = {
         </select>
       </div>
 
-      <!-- วันที่เริ่มต้น -->
       <div class="select-wrapper">
         <label>วันที่เริ่มต้น</label>
         <VDatePicker
@@ -78,7 +79,6 @@ const calendarLocale = {
         </VDatePicker>
       </div>
 
-      <!-- วันที่สิ้นสุด -->
       <div class="select-wrapper">
         <label>วันที่สิ้นสุด</label>
         <VDatePicker
