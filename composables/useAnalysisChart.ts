@@ -1,9 +1,6 @@
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { allTransformers, allTransformerRealtime } from '@/composables/useSiteData'
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
 export interface ChartPoint { time: string; [key: string]: number | string }
 export interface Series     { key: string; label: string; color: string; unit: string }
 export interface EChartsDataset {
@@ -13,9 +10,6 @@ export interface EChartsDataset {
   showArea?: boolean
 }
 
-// ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
 export const TOPICS = [
   { value: 'ev',   label: 'Analysis EV'                               },
   { value: 'pv',   label: 'Analysis PV'                               },
@@ -56,22 +50,15 @@ export const SERIES_CONFIG: Record<string, Series[]> = {
   ],
 }
 
-// ─────────────────────────────────────────────
-// Composable
-// ─────────────────────────────────────────────
 export function useAnalysisChart() {
 
-  // ── State ──────────────────────────────────
   const selectedTopic       = ref('ev')
-  const selectedTransformer = ref('')
+  const selectedTransformer = ref(allTransformers.length ? allTransformers[0].id : '')
   const selectedPeriod      = ref('current')
-  const startDate           = ref('')
-  const endDate             = ref('')
   const isLoading           = ref(false)
   const hasGenerated        = ref(false)
   const chartData           = ref<ChartPoint[]>([])
 
-  // ── Computed ───────────────────────────────
   const transformerOptions = computed(() =>
     allTransformers.map(t => ({ value: t.id, label: `${t.id} — ${t.location}` }))
   )
@@ -84,12 +71,10 @@ export function useAnalysisChart() {
     () => TOPICS.find(t => t.value === selectedTopic.value)?.label ?? ''
   )
 
-  /** Array of time strings สำหรับ xAxis ของ ECharts */
   const chartLabels = computed<string[]>(
     () => chartData.value.map(d => d.time as string)
   )
 
-  /** Dataset format ที่ AnalysisLineChart / AnalysisBarChart รับ */
   const echartsDatasets = computed<EChartsDataset[]>(() =>
     currentSeries.value.map(s => ({
       name:     s.label,
@@ -99,22 +84,11 @@ export function useAnalysisChart() {
     }))
   )
 
-  // ── Init ───────────────────────────────────
-  onMounted(() => {
-    const now  = new Date()
-    endDate.value = now.toISOString().split('T')[0]
-    const past = new Date(now)
-    past.setDate(past.getDate() - 7)
-    startDate.value = past.toISOString().split('T')[0]
-    if (allTransformers.length) selectedTransformer.value = allTransformers[0].id
-  })
-
   watch(selectedTopic, () => {
     hasGenerated.value = false
     chartData.value    = []
   })
 
-  // ── Mock generator ─────────────────────────
   function generateTimeSeries(): ChartPoint[] {
     const rt = allTransformerRealtime.find(r => r.transformerId === selectedTransformer.value)
     if (!rt) return []
@@ -154,8 +128,8 @@ export function useAnalysisChart() {
     })
   }
 
-  // ── Actions ────────────────────────────────
-  async function handleGenerate() {
+  // รับ payload { startDate, endDate } จาก FilterCard
+  async function handleGenerate(payload: { startDate: string; endDate: string }) {
     if (!selectedTransformer.value) return
     isLoading.value    = true
     hasGenerated.value = false
@@ -182,15 +156,11 @@ export function useAnalysisChart() {
     URL.revokeObjectURL(url)
   }
 
-  // ── Return ─────────────────────────────────
   return {
-    // state
     selectedTopic, selectedTransformer, selectedPeriod,
-    startDate, endDate, isLoading, hasGenerated, chartData,
-    // computed
+    isLoading, hasGenerated, chartData,
     transformerOptions, currentSeries, selectedTopicLabel,
     chartLabels, echartsDatasets,
-    // actions
     handleGenerate, handleExport,
   }
 }

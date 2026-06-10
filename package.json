@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
     "chart.js": "^4.4.1",
     "echarts": "^6.1.0",
     "leaflet": "^1.9.4",

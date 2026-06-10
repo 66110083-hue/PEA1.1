@@ -1,33 +1,44 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { TOPICS, PERIODS } from '@/composables/useAnalysisChart'
 
-// ── Props ──────────────────────────────────────────────────
 const props = defineProps<{
-  modelTopic:       string
-  modelTransformer: string
-  modelPeriod:      string
-  modelStartDate:   string
-  modelEndDate:     string
+  modelTopic:         string
+  modelTransformer:   string
+  modelPeriod:        string
   transformerOptions: { value: string; label: string }[]
-  isLoading:        boolean
-  hasGenerated:     boolean
+  isLoading:          boolean
+  hasGenerated:       boolean
 }>()
 
-// ── Emits ──────────────────────────────────────────────────
 const emit = defineEmits<{
   'update:modelTopic':       [v: string]
   'update:modelTransformer': [v: string]
   'update:modelPeriod':      [v: string]
-  'update:modelStartDate':   [v: string]
-  'update:modelEndDate':     [v: string]
-  'generate': []
+  'generate': [payload: { startDate: string; endDate: string }]
   'export':   []
 }>()
+
+const startDate = ref(new Date())
+const endDate   = ref(new Date())
+const toISO = (d: Date) => d.toISOString().split('T')[0]
+
+const calendarLocale = {
+  id: 'th',
+  firstDayOfWeek: 2,
+  masks: { input: 'DD/MM/YYYY' },
+}
+
+const handleGenerate = () => {
+  emit('generate', {
+    startDate: toISO(startDate.value),
+    endDate:   toISO(endDate.value),
+  })
+}
 </script>
 
 <template>
   <div class="filter-card">
-
     <div class="filter-grid">
 
       <!-- Topic -->
@@ -72,23 +83,27 @@ const emit = defineEmits<{
       <!-- Start Date -->
       <div class="field">
         <label class="label">Start Date</label>
-        <input
-          :value="modelStartDate"
-          type="date"
-          class="input"
-          @input="emit('update:modelStartDate', ($event.target as HTMLInputElement).value)"
-        />
+        <VDatePicker v-model="startDate" :locale="calendarLocale" :max-date="endDate">
+          <template #default="{ inputValue, togglePopover }">
+            <div class="date-input-wrapper" @click="togglePopover">
+              <span class="date-input-text">{{ inputValue }}</span>
+              <i class="ti ti-calendar date-icon"></i>
+            </div>
+          </template>
+        </VDatePicker>
       </div>
 
       <!-- End Date -->
       <div class="field">
         <label class="label">End Date</label>
-        <input
-          :value="modelEndDate"
-          type="date"
-          class="input"
-          @input="emit('update:modelEndDate', ($event.target as HTMLInputElement).value)"
-        />
+        <VDatePicker v-model="endDate" :locale="calendarLocale" :min-date="startDate">
+          <template #default="{ inputValue, togglePopover }">
+            <div class="date-input-wrapper" @click="togglePopover">
+              <span class="date-input-text">{{ inputValue }}</span>
+              <i class="ti ti-calendar date-icon"></i>
+            </div>
+          </template>
+        </VDatePicker>
       </div>
 
     </div>
@@ -98,7 +113,7 @@ const emit = defineEmits<{
       <button
         class="btn btn--primary"
         :disabled="!modelTransformer || isLoading"
-        @click="emit('generate')"
+        @click="handleGenerate"
       >
         <i class="ti" :class="isLoading ? 'ti-loader-2 spin' : 'ti-refresh'"></i>
         {{ isLoading ? 'กำลังโหลด…' : 'Generate' }}
@@ -113,89 +128,99 @@ const emit = defineEmits<{
         Export
       </button>
     </div>
-
   </div>
 </template>
 
 <style scoped>
 .filter-card {
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #e5e7eb);
+  background:    var(--color-surface, #fff);
+  border:        1px solid var(--color-border, #e5e7eb);
   border-radius: 12px;
-  padding: 20px;
-  display: flex;
+  padding:       20px;
+  display:       flex;
   flex-direction: column;
-  gap: 0;
+  gap:           0;
 }
-
 .filter-grid {
-  display: grid;
+  display:               grid;
   grid-template-columns: 2fr 2fr 1fr 1fr 1fr;
-  gap: 12px;
-  align-items: end;
+  gap:                   12px;
+  align-items:           end;
 }
-
-.field        { display: flex; flex-direction: column; gap: 5px; }
-
+.field { display: flex; flex-direction: column; gap: 5px; }
 .label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-2, #6b7280);
+  font-size:      11px;
+  font-weight:    600;
+  color:          var(--color-text-2, #6b7280);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-
-.select,
-.input {
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--color-border, #d1d5db);
+.select {
+  height:     36px;
+  padding:    0 10px;
+  border:     1px solid var(--color-border, #d1d5db);
   border-radius: 8px;
-  font-size: 13px;
-  color: var(--color-text-1, #111827);
+  font-size:  13px;
+  color:      var(--color-text-1, #111827);
   background: var(--color-bg, #f9fafb);
-  outline: none;
+  outline:    none;
   transition: border-color 0.18s;
-  width: 100%;
+  width:      100%;
   box-sizing: border-box;
 }
-.select:focus,
-.input:focus { border-color: var(--color-primary, #1D9E75); }
+.select:focus { border-color: var(--color-primary, #1D9E75); }
+
+.date-input-wrapper {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             8px;
+  height:          36px;
+  padding:         0 10px;
+  border:          1px solid var(--color-border, #d1d5db);
+  border-radius:   8px;
+  font-size:       13px;
+  color:           var(--color-text-1, #111827);
+  background:      var(--color-bg, #f9fafb);
+  cursor:          pointer;
+  user-select:     none;
+  box-sizing:      border-box;
+  transition:      border-color 0.18s;
+}
+.date-input-wrapper:hover { border-color: var(--color-primary, #1D9E75); }
+.date-icon { color: var(--color-text-2, #6b7280); font-size: 15px; }
 
 .actions {
-  display: flex;
-  gap: 10px;
+  display:         flex;
+  gap:             10px;
   justify-content: flex-end;
-  margin-top: 14px;
+  margin-top:      14px;
 }
-
 .btn {
-  display: inline-flex;
+  display:     inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 18px;
+  gap:         6px;
+  height:      36px;
+  padding:     0 18px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size:   13px;
   font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: opacity 0.18s, transform 0.1s;
+  cursor:      pointer;
+  border:      none;
+  transition:  opacity 0.18s, transform 0.1s;
 }
-.btn:disabled                { opacity: 0.4; cursor: not-allowed; }
-.btn:not(:disabled):hover    { opacity: 0.85; }
-.btn:not(:disabled):active   { transform: scale(0.97); }
-.btn--primary  { background: var(--color-primary, #1D9E75); color: #fff; }
-.btn--outline  {
+.btn:disabled              { opacity: 0.4; cursor: not-allowed; }
+.btn:not(:disabled):hover  { opacity: 0.85; }
+.btn:not(:disabled):active { transform: scale(0.97); }
+.btn--primary { background: var(--color-primary, #1D9E75); color: #fff; }
+.btn--outline {
   background: transparent;
-  color: var(--color-primary, #1D9E75);
-  border: 1.5px solid var(--color-primary, #1D9E75);
+  color:      var(--color-primary, #1D9E75);
+  border:     1.5px solid var(--color-primary, #1D9E75);
 }
-
 .spin { animation: spin 0.9s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Responsive */
 @media (max-width: 900px) { .filter-grid { grid-template-columns: 1fr 1fr 1fr; } }
 @media (max-width: 600px) { .filter-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 420px) { .filter-grid { grid-template-columns: 1fr; } }
