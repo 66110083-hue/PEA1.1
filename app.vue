@@ -18,13 +18,6 @@ const showProfileMenu = ref(false)
 const clock           = ref('')
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
-// --- State สำหรับเก็บข้อมูล API Gateway ---
-const gatewayStatus = ref({
-  online: 0,
-  total: 0
-})
-let gatewayTimer: ReturnType<typeof setInterval> | null = null
-
 // =========================
 // Computed Properties
 // =========================
@@ -97,33 +90,12 @@ function updateClock() {
   })
 }
 
-// --- ฟังก์ชันดึงสถานะ Gateway จาก API ---
-const fetchGatewayStatus = async () => {
-  try {
-    const response = await fetch('https://greatways.net/api/health')
-    const data = await response.json()
-    
-    // อัปเดตข้อมูล (แก้ไข data.online / data.total ตาม key จริงของ API)
-    gatewayStatus.value = {
-      online: data.online ?? 0,
-      total: data.total ?? 0
-    }
-  } catch (error) {
-    console.error('Failed to fetch gateway status:', error)
-  }
-}
-
 // =========================
 // Lifecycle Hooks
 // =========================
 onMounted(() => {
   updateClock()
   clockTimer = setInterval(updateClock, 1000)
-
-  // ดึงข้อมูล API ทันทีเมื่อโหลดหน้า
-  fetchGatewayStatus()
-  // ตั้งเวลาดึงข้อมูล API ซ้ำทุกๆ 1 นาที (60000 ms)
-  gatewayTimer = setInterval(fetchGatewayStatus, 60000)
 
   const saved = localStorage.getItem('isLoggedIn')
   if (saved === 'true') {
@@ -137,7 +109,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (clockTimer) clearInterval(clockTimer)
-  if (gatewayTimer) clearInterval(gatewayTimer) // เคลียร์ timer เพื่อป้องกัน memory leak
 })
 </script>
 
@@ -206,11 +177,6 @@ onBeforeUnmount(() => {
     <header class="topbar">
       <div></div>
       <div class="topbar-right">
-
-        <div class="status-badge">
-          <span class="status-dot" :class="{ 'is-offline': gatewayStatus.online === 0 }"></span> 
-          Online {{ gatewayStatus.online }}/{{ gatewayStatus.total }}
-        </div>
 
         <div class="clock-display">
           {{ clock }}
@@ -365,19 +331,4 @@ onBeforeUnmount(() => {
 
 .summary-row.critical .summary-count { color: #E24B4A; }
 .summary-row.offline  .summary-count { color: #BA7517; }
-
-/* ── Status Badge Dot (เพิ่มเติมสำหรับให้ไฟเปลี่ยนสีได้) ───────────────────── */
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #10B981; /* สีเขียว */
-  display: inline-block;
-  margin-right: 6px;
-  transition: background-color 0.3s;
-}
-
-.status-dot.is-offline {
-  background-color: #EF4444; /* สีแดง */
-}
 </style>
