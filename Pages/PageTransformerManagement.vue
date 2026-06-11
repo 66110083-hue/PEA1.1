@@ -4,9 +4,10 @@ import TransformerFormModal from '~/components/PageTransformer/TransformerFormMo
 import TransformerDetail    from '~/components/PageTransformer/TransformerDetail.vue'
 
 import { useTransformer }   from '~/composables/useTransformer'
-import { ref }              from 'vue'
+import { ref, onMounted }   from 'vue'  // ← เพิ่ม onMounted
 
 const {
+  loadFromAPI,                          // ← เพิ่ม
   transformers, filteredData, totalPages,
   searchQuery, statusFilter, page,
   showModal, modalMode, formError, form,
@@ -14,21 +15,19 @@ const {
   closeModal, saveForm, deleteRow, exportCSV,
 } = useTransformer()
 
+onMounted(() => loadFromAPI())          // ← เพิ่ม
+
 // ─── Detail View ──────────────────────────────────────────
 const showDetail          = ref(false)
 const selectedTransformer = ref<typeof transformers.value[0] | null>(null)
 
-
 function toTransformerId(row: typeof transformers.value[0]): string {
-  // 🔥 ส่งรหัส 'M-01' ไปให้หน้า Detail ตรงๆ ได้เลยครับ โค้ดจะคลีนขึ้นมาก
   return String(row.id)
 }
-
 function openDetail(row: typeof transformers.value[0]) {
   selectedTransformer.value = row
   showDetail.value = true
 }
-
 function backToList() {
   showDetail.value          = false
   selectedTransformer.value = null
