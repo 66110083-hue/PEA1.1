@@ -3,13 +3,15 @@ import { ref, computed, type Ref } from 'vue'
 import { allTransformerRealtime }  from './useSiteData'
 import type { TransformerRealtime } from './useSiteData'
 
+const BASE_URL = 'https://greatways.net'
+
 export const useEnergyData = (
   activeMetric:  Ref<string>,
   activePhases:  Ref<string[]>,
   PHASES:        any,
 ) => {
   const allData               = ref<any[]>([])
-  const isLoading             = ref(false)
+  const isLoading              = ref(false)
   const selectedTransformerId = ref<string | null>(null)
 
   const realtimeSnapshot = computed<TransformerRealtime | null>(() => {
@@ -116,6 +118,97 @@ export const useEnergyData = (
     })
   }
 
+  // ─────────────────────────────────────────────────────────
+  // 🟢 fetchEnergyData: เรียก GET /api/measure จริง
+  // ─────────────────────────────────────────────────────────
+
+  // API ต้องการ "d/m/yyyy" — แปลงจาก "yyyy-mm-dd" (ที่ useDashboard.ts ส่งมา)
+  function toApiDateFormat(isoDate: string): string {
+    const [y, m, d] = isoDate.split('-')
+    return `${+d}/${+m}/${y}` // ตัด leading zero ออกตามตัวอย่าง 17/6/2026
+  }
+
+  // แปลง "nan" หรือค่าว่าง → 0, string number → number
+  function toNum(v: unknown): number {
+    if (v === null || v === undefined) return 0
+    const s = String(v).trim().toLowerCase()
+    if (s === 'nan' || s === '') return 0
+    const n = parseFloat(s)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  // แปลง "YYYY-MM-DD HH:mm:ss" → Date object
+  function parseApiTimestamp(ts: string): Date {
+    // รูปแบบนี้ JS แปลงตรงได้ถ้าเปลี่ยนช่องว่างเป็น "T"
+    return new Date(ts.replace(' ', 'T'))
+  }
+
+  async function fetchEnergyData(
+    siteId: string | number,
+    startDate: string, // คาดว่าเป็น "yyyy-mm-dd"
+    endDate:   string, // คาดว่าเป็น "yyyy-mm-dd"
+  ) {
+    isLoading.value = true
+    try {
+      const params = new URLSearchParams({
+        source: 'site',
+        siteid: String(siteId),
+        start:  toApiDateFormat(startDate),
+        end:    toApiDateFormat(endDate),
+      })
+
+      const res  = await fetch(`${BASE_URL}/api/measure?${params.toString()}`)
+      const json = await res.json()
+
+      if (json.status !== 'susscess' || !Array.isArray(json.msg)) {
+        allData.value = []
+        return
+      }
+
+      // ── แปลง column-based → lookup table ตาม label ──────
+      const columns: Record<string, string[]> = {}
+      for (const col of json.msg) {
+        columns[col.label] = col.data
+      }
+
+      const timestamps = columns['timestamp'] ?? []
+
+      allData.value = timestamps.map((ts, i) => {
+        const t = parseApiTimestamp(ts)
+
+        const vA = toNum(columns['V_A']?.[i])
+        const vB = toNum(columns['V_B']?.[i])
+        const vC = toNum(columns['V_C']?.[i])
+
+        const iA = toNum(columns['I_A']?.[i])
+        const iB = toNum(columns['I_B']?.[i])
+        const iC = toNum(columns['I_C']?.[i])
+
+        // API มีแค่ P_Total (ไม่แยกราย phase) → หารเฉลี่ย 3 phase
+        const pTotal  = toNum(columns['P_Total']?.[i])
+        const pPerPhase = +(pTotal / 3).toFixed(2)
+
+        return {
+          label:     `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`,
+          timestamp: t,
+          voltage:   { A: vA, B: vB, C: vC },
+          current:   { A: iA, B: iB, C: iC },
+          power:     { A: pPerPhase, B: pPerPhase, C: pPerPhase },
+          // เก็บค่ารวมไว้เผื่อใช้ทีหลัง (เช่นแสดง Total แยกจาก per-phase)
+          powerTotal:    pTotal,
+          reactiveTotal: toNum(columns['Q_Total']?.[i]),
+          apparentTotal: toNum(columns['S_Total']?.[i]),
+          powerFactor:   toNum(columns['PF']?.[i]),
+        }
+      })
+    } catch (e) {
+      console.error('[useEnergyData] fetchEnergyData failed', e)
+      allData.value = []
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     allData, isLoading,
     selectedTransformerId,
@@ -123,5 +216,6 @@ export const useEnergyData = (
     latest, statistics, balanceData,
     unit, lastUpdateText,
     seedFromRealtime,
+    fetchEnergyData,
   }
 }
