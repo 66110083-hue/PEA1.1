@@ -12,9 +12,13 @@ export interface Site {
   lng: number
   status: SiteStatus
   kw: number
-  // เผื่อมีบางไฟล์ในแอปที่ยังไม่ได้แก้แอบเรียกหาฟิลด์เหล่านี้ ป้องกันไม่ให้แอปแครช
   province: string
   district: string
+  // 🟢 เพิ่มฟิลด์ใหม่สำหรับรับข้อมูลจาก API: /site/install
+  deviceId: string
+  devSerial: string
+  devDetail: string
+  installDate: string
 }
 
 export interface ApiSite {
@@ -26,6 +30,24 @@ export interface ApiSite {
 
 export interface ApiResponse {
   msg: ApiSite[]
+  status: string
+}
+
+// 🟢 Interface สำหรับ API: /site/install
+export interface ApiInstallItem {
+  devdetail: string
+  devid: string
+  devserial: string
+  img: string
+  installdate: string
+  installid: number
+  installuser: string
+  siteid: string
+  sitename: string
+}
+
+export interface ApiInstallResponse {
+  msg: ApiInstallItem[]
   status: string
 }
 
@@ -95,17 +117,16 @@ export const alertColor: Record<string, string> = {
   info: '#1D9E75',
 }
 
-// ─── 3. GLOBAL REACTIVE ARRAYS (เป็น Array จริง ไม่ต้องใช้ .value ทั่วทั้งแอป) ───
+// ─── 3. GLOBAL REACTIVE ARRAYS ─────────────────────────────
 
 export const allSites = reactive<Site[]>([])
 export const allAlerts = reactive<Alert[]>([])
 export const allTransformers = reactive<Transformer[]>([])
 export const allTransformerRealtime = reactive<TransformerRealtime[]>([])
 
-// ─── 4. ฟังก์ชันภายในสำหรับจัดการอัปเดตข้อมูลตัวแปรตามเมื่อ API โหลดเสร็จ ───
+// ─── 4. ฟังก์ชันภายใน ──────────────────────────────────────
 
 function updateDependents() {
-  // 1. คำนวณและอัปเดตข้อมูล Alerts
   const alerts = allSites.map((s) => {
     const level: 'alert' | 'warning' | 'info' =
       s.status === 'alert' ? 'alert' : s.status === 'offline' ? 'warning' : 'info'
@@ -122,7 +143,6 @@ function updateDependents() {
   })
   allAlerts.splice(0, allAlerts.length, ...alerts)
 
-  // 2. คำนวณและอัปเดตข้อมูล Transformers Static
   const transformers = allSites.map((s, i) => {
     const brands = ['VICA TRANS', 'Schneider', 'ABB', 'Siemens', 'MEIDENSHA', 'Thai-Trans']
     const comms = ['4G Cellular', '4G Cellular', 'Fiber', 'WiFi', '4G Cellular', 'Fiber']
@@ -155,15 +175,12 @@ function updateDependents() {
   })
   allTransformers.splice(0, allTransformers.length, ...transformers)
 
-  // 3. คำนวณและอัปเดตข้อมูล Realtime ของหม้อแปลง
   const realtime = allTransformers.map((t) => {
     const site = allSites.find(s => s.id === t.siteId)!
     return mockRealtime(t, site || { kw: 5, id: t.siteId })
   })
   allTransformerRealtime.splice(0, allTransformerRealtime.length, ...realtime)
 }
-
-// ─── 5. MOCK REALTIME FUNCTION ─────────────────────────────
 
 function mockRealtime(t: Transformer, site: any): TransformerRealtime {
   const kw = site.kw || 5
@@ -183,7 +200,6 @@ function mockRealtime(t: Transformer, site: any): TransformerRealtime {
     activePowerExportA: 0, activePowerExportB: 0, activePowerExportC: 0, totalActivePowerExport: 0,
     reactivePowerImportA: +(phaseKw * 0.3).toFixed(3), reactivePowerImportB: +(phaseKw * 0.28).toFixed(3), reactivePowerImportC: +(phaseKw * 0.32).toFixed(3),
     totalReactivePowerImport: +(kw * 0.3).toFixed(3),
-    reactivePowerExportA: 0, reactivePowerExportB: 0, reactivePowerExportC: 0, totalReactivePowerExport: 0,
     apparentPowerA: +(phaseKw / pf).toFixed(3), apparentPowerB: +(phaseKw * 1.05 / pf).toFixed(3), apparentPowerC: +(phaseKw * 0.97 / pf).toFixed(3),
     totalApparentPower: +(kw / pf).toFixed(3),
     powerFactorA: +pf.toFixed(3), powerFactorB: +(pf - 0.01).toFixed(3), powerFactorC: +(pf + 0.01).toFixed(3), totalPowerFactor: +pf.toFixed(3),
@@ -193,7 +209,7 @@ function mockRealtime(t: Transformer, site: any): TransformerRealtime {
   }
 }
 
-// ─── 6. COMPOSABLES ────────────────────────────────────────
+// ─── 5. COMPOSABLES ────────────────────────────────────────
 
 export function useSiteData() {
   const isLoading = ref(false)
@@ -204,13 +220,37 @@ export function useSiteData() {
     error.value = null
 
     try {
-      const response = await fetch('https://greatways.net/api/site/list')
-      if (!response.ok) throw new Error('API Error')
+      // 🟢 1. ยิง 2 API พร้อมกันแบบ Parallel (ลดเวลาหน่วงของเว็บได้ 50%)
+      const [listRes, installRes] = await Promise.all([
+        fetch('https://greatways.net/api/site/list'),
+        fetch('https://greatways.net/api/site/install')
+      ])
 
-      const data: ApiResponse = await response.json()
+      if (!listRes.ok || !installRes.ok) throw new Error('API Network Error')
 
-      if (data.status === 'susscess' && data.msg) {
-        const mappedSites = data.msg.map((apiSite, index) => {
+      const listData: ApiResponse = await listRes.json()
+      const installData: ApiInstallResponse = await installRes.json()
+
+      const isListSuccess = ['success', 'susscess'].includes(listData.status?.toLowerCase())
+      const isInstallSuccess = ['success', 'susscess'].includes(installData.status?.toLowerCase())
+
+      if (isListSuccess && listData.msg) {
+        
+        // 🟢 2. สร้าง Lookup Map ของข้อมูลอุปกรณ์ (เอา siteid เป็น Key)
+        // เพื่อที่ตอน Map จะได้ไม่ต้องกด .find() วนลูปซ้ำซ้อนให้กิน CPU
+        const installLookup = new Map<string, ApiInstallItem>()
+        if (isInstallSuccess && Array.isArray(installData.msg)) {
+          for (const item of installData.msg) {
+            installLookup.set(String(item.siteid).trim(), item)
+          }
+        }
+
+        const mappedSites = listData.msg.map((apiSite, index) => {
+          const siteIdStr = String(apiSite.id).trim()
+          
+          // 🟢 3. ดึงข้อมูลอุปกรณ์ของไซต์นี้ออกมาจาก Map
+          const devInfo = installLookup.get(siteIdStr)
+
           const [latStr, lngStr] = apiSite.locationXY.split(',')
           const lat = parseFloat(latStr?.trim()) || 0
           const lng = parseFloat(lngStr?.trim()) || 0
@@ -219,7 +259,7 @@ export function useSiteData() {
           const mockStatus = statusList[index % 3]
 
           return {
-            id: String(apiSite.id), // ไอดีเลข 2, 3, 4 ตรงตาม API จริง
+            id: siteIdStr, 
             name: apiSite.name,
             img: apiSite.img,
             lat,
@@ -227,20 +267,22 @@ export function useSiteData() {
             status: mockStatus,
             kw: mockStatus === 'offline' ? 0 : Math.floor(Math.random() * 150) + 30,
             province: '',
-            district: ''
+            district: '',
+
+            // 🟢 4. ประกอบร่างข้อมูลอุปกรณ์เข้าสู่ Object ของไซต์
+            deviceId:    devInfo?.devid     || '-',
+            devSerial:   devInfo?.devserial || '-',
+            devDetail:   devInfo?.devdetail || 'ไม่มีข้อมูลรายละเอียดอุปกรณ์',
+            installDate: devInfo?.installdate || '-'
           }
         })
 
-        // 🟢 เคล็ดลับสำคัญ: ใช้ splice เพื่อแทนที่ข้อมูลใน Reactive Array 
-        // โดยไม่ทำลาย Pointer อ้างอิงตัวเก่า ทำให้หน้าอื่นๆ ที่ Import ไปใช้ยังสั่ง .filter() ได้ปกติ
         allSites.splice(0, allSites.length, ...mappedSites)
-        
-        // สั่งอัปเดตตัวแปรผกผันตามทั้งหมด (Alert, Transformer) ทันที
         updateDependents()
       }
     } catch (err: any) {
       error.value = err.message
-      console.error(err)
+      console.error('[fetchSites] Failed:', err)
     } finally {
       isLoading.value = false
     }
@@ -253,15 +295,12 @@ export function useTransformerData() {
   function getTransformerBySite(siteId: string): Transformer | undefined {
     return allTransformers.find(t => t.siteId === siteId)
   }
-
   function getTransformerById(id: string): Transformer | undefined {
     return allTransformers.find(t => t.id === id)
   }
-
   function getRealtimeById(transformerId: string): TransformerRealtime | undefined {
     return allTransformerRealtime.find(r => r.transformerId === transformerId)
   }
-
   function getFullDetail(transformerId: string) {
     const transformer = getTransformerById(transformerId)
     if (!transformer) return null
@@ -271,11 +310,8 @@ export function useTransformerData() {
   }
 
   return {
-    allTransformers,
-    allTransformerRealtime,
-    getTransformerBySite,
-    getTransformerById,
-    getRealtimeById,
-    getFullDetail,
+    allTransformers, allTransformerRealtime,
+    getTransformerBySite, getTransformerById,
+    getRealtimeById, getFullDetail,
   }
 }

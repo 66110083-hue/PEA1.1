@@ -40,7 +40,16 @@ onMounted(() => {
 // สร้างข้อมูลแกน X (เวลา)
 const chartXData = computed(() => {
   if (!allData.value) return []
-  return allData.value.map((d: any) => d.label)
+  return allData.value.map((d: any) => {
+    if (!d.timestamp) return d.label
+
+    const dateObj = new Date(d.timestamp)
+    const day   = String(dateObj.getDate()).padStart(2, '0')
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+    
+    // แปลงจากโชว์แค่ "18:30" ให้กลายเป็น "18/06 18:30" 
+    return `${day}/${month} ${d.label}`
+  })
 })
 
 // สร้างข้อมูลแกน Y (เส้นกราฟตามเฟสและประเภทข้อมูล)
@@ -94,9 +103,13 @@ function onMapSelect(id: string) {
     <template v-if="hasData">
       <div class="phase-grid">
         <PhaseCard
-          v-for="ph in PHASES" :key="ph.id"
-          v-bind="latest[ph.id]"
-          :phase="ph.id" :color="ph.color"
+          v-for="ph in PHASES" 
+          :key="ph.id"
+          :phase="ph.id" 
+          :color="ph.color"
+          :current="latest?.[ph.id]?.current ?? 0"
+          :voltage="latest?.[ph.id]?.voltage ?? 0"
+          :power="latest?.[ph.id]?.power ?? 0"
           :label="`ค่าล่าสุด (${lastUpdateText})`"
         />
       </div>

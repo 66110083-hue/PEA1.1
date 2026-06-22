@@ -26,15 +26,40 @@ export const useEnergyData = (
     return map[activeMetric.value] ?? ''
   })
 
-  const lastUpdateText = computed(() => {
-    if (!allData.value.length) return '--:--'
-    const last = allData.value.at(-1)
-    if (!last?.timestamp) return '--:--'
-    return (last.timestamp as Date).toLocaleTimeString('th-TH', {
-      hour: '2-digit', minute: '2-digit', hour12: false,
-    })
+  // ─── 1. ตัวแปรช่วยหา "เม็ดข้อมูลสุดท้ายของวันนั้นที่มีการใช้ไฟจริงๆ" ───
+  const lastActivePoint = computed(() => {
+    if (!allData.value || !allData.value.length) return null
+
+    // วิ่งจากขวาไปซ้าย (reverse) เพื่อหาจุดแรกที่กระแสไฟไม่เป็น 0
+    const activePoints = [...allData.value].reverse()
+    return activePoints.find(d => 
+      (d.current?.A ?? 0) > 0 || 
+      (d.current?.B ?? 0) > 0 || 
+      (d.current?.C ?? 0) > 0 || 
+      (d.powerTotal ?? 0) > 0
+    ) || allData.value.at(-1) // ถ้าหาไม่เจอจริงๆ ค่อยเอาเม็ดขวาสุด
   })
 
+  // ─── 2. แปลงข้อความหัวการ์ดให้ออกมาเป็น วัน/เดือน/ปี + เวลา ───
+  const lastUpdateText = computed(() => {
+    const snap = realtimeSnapshot.value
+    const rawDate = snap ? new Date() : lastActivePoint.value?.timestamp
+
+    if (!rawDate) return '--/--/---- --:--'
+
+    const d = new Date(rawDate)
+    if (isNaN(d.getTime())) return '--/--/---- --:--'
+
+    const day   = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year  = d.getFullYear() // ค.ศ. เช่น 2026
+    const hours = String(d.getHours()).padStart(2, '0')
+    const mins  = String(d.getMinutes()).padStart(2, '0')
+
+    return `${day}/${month}/${year} ${hours}:${mins} น.`
+  })
+
+  // ─── 3. ดึงตัวเลข A, B, C มาจาก lastActivePoint ตัวเดียวกันเป๊ะ ───
   const latest = computed(() => {
     const snap = realtimeSnapshot.value
     if (snap) {
@@ -44,19 +69,21 @@ export const useEnergyData = (
         C: { current: snap.currentC, voltage: snap.voltageC, power: snap.activePowerImportC },
       }
     }
-    const last = allData.value.at(-1)
-    if (!last) {
+
+    const point = lastActivePoint.value
+    if (!point) {
       return {
         A: { current: 0, voltage: 0, power: 0 },
         B: { current: 0, voltage: 0, power: 0 },
         C: { current: 0, voltage: 0, power: 0 },
       }
     }
+
     return PHASES.reduce((acc: any, p: any) => {
       acc[p.id] = {
-        current: last.current[p.id],
-        voltage: last.voltage[p.id],
-        power:   last.power[p.id],
+        current: point.current?.[p.id] ?? 0,
+        voltage: point.voltage?.[p.id] ?? 0,
+        power:   point.power?.[p.id]   ?? 0,
       }
       return acc
     }, {})
@@ -118,17 +145,12 @@ export const useEnergyData = (
     })
   }
 
-  // ─────────────────────────────────────────────────────────
-  // 🟢 fetchEnergyData: เรียก GET /api/measure จริง
-  // ─────────────────────────────────────────────────────────
-
-  // API ต้องการ "d/m/yyyy" — แปลงจาก "yyyy-mm-dd" (ที่ useDashboard.ts ส่งมา)
+  // API ต้องการ "d/m/yyyy" — แปลงจาก "yyyy-mm-dd"
   function toApiDateFormat(isoDate: string): string {
     const [y, m, d] = isoDate.split('-')
-    return `${+d}/${+m}/${y}` // ตัด leading zero ออกตามตัวอย่าง 17/6/2026
+    return `${+d}/${+m}/${y}` 
   }
 
-  // แปลง "nan" หรือค่าว่าง → 0, string number → number
   function toNum(v: unknown): number {
     if (v === null || v === undefined) return 0
     const s = String(v).trim().toLowerCase()
@@ -137,16 +159,14 @@ export const useEnergyData = (
     return Number.isFinite(n) ? n : 0
   }
 
-  // แปลง "YYYY-MM-DD HH:mm:ss" → Date object
   function parseApiTimestamp(ts: string): Date {
-    // รูปแบบนี้ JS แปลงตรงได้ถ้าเปลี่ยนช่องว่างเป็น "T"
     return new Date(ts.replace(' ', 'T'))
   }
 
   async function fetchEnergyData(
     siteId: string | number,
-    startDate: string, // คาดว่าเป็น "yyyy-mm-dd"
-    endDate:   string, // คาดว่าเป็น "yyyy-mm-dd"
+    startDate: string, 
+    endDate:   string, 
   ) {
     isLoading.value = true
     try {
@@ -160,12 +180,12 @@ export const useEnergyData = (
       const res  = await fetch(`${BASE_URL}/api/measure?${params.toString()}`)
       const json = await res.json()
 
-      if (json.status !== 'susscess' || !Array.isArray(json.msg)) {
+      // ดักเผื่อ API ตอบกลับมาเป็น success หรือ susscess (สะกดผิด) ได้ทั้งคู่
+      if (!['success', 'susscess'].includes(json.status) || !Array.isArray(json.msg)) {
         allData.value = []
         return
       }
 
-      // ── แปลง column-based → lookup table ตาม label ──────
       const columns: Record<string, string[]> = {}
       for (const col of json.msg) {
         columns[col.label] = col.data
@@ -184,7 +204,6 @@ export const useEnergyData = (
         const iB = toNum(columns['I_B']?.[i])
         const iC = toNum(columns['I_C']?.[i])
 
-        // API มีแค่ P_Total (ไม่แยกราย phase) → หารเฉลี่ย 3 phase
         const pTotal  = toNum(columns['P_Total']?.[i])
         const pPerPhase = +(pTotal / 3).toFixed(2)
 
@@ -194,7 +213,6 @@ export const useEnergyData = (
           voltage:   { A: vA, B: vB, C: vC },
           current:   { A: iA, B: iB, C: iC },
           power:     { A: pPerPhase, B: pPerPhase, C: pPerPhase },
-          // เก็บค่ารวมไว้เผื่อใช้ทีหลัง (เช่นแสดง Total แยกจาก per-phase)
           powerTotal:    pTotal,
           reactiveTotal: toNum(columns['Q_Total']?.[i]),
           apparentTotal: toNum(columns['S_Total']?.[i]),
