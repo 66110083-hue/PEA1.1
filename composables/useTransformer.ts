@@ -1,7 +1,7 @@
 // 📂 composables/useTransformer.ts
 
 import { ref, computed, watch } from 'vue'
-import { useSiteData } from '~/composables/useSiteData'
+import { useSiteData, allTransformers as siteTransformers } from '~/composables/useSiteData'
 
 const BASE_URL = 'https://greatways.net'
 
@@ -26,60 +26,50 @@ export const emptyForm = (): Transformer => ({
   province: '', location: '', lat: 0, long: 0, installDate: '', imagePreview: '',
 })
 
-const { provinces: SITE_PROVINCES, allSites } = useSiteData()
-export const PROVINCES  = SITE_PROVINCES
+const { allSites } = useSiteData()
+// provinces ไม่ได้มาจาก API ชั่วคราว รอ backend เพิ่ม field
+export const PROVINCES  = [
+  'กรุงเทพมหานคร','นนทบุรี','ปทุมธานี','สมุทรปราการ','นครปฐม',
+  'สมุทรสาคร','อยุธยา','สระบุรี','ชลบุรี','ระยอง',
+]
 export const COMM_TYPES = ['4G Cellular', 'WiFi', 'LoRa', 'Fiber']
 
-const TYPE_MAP: Record<string, string> = {
-  '1': '4G Cellular',
-  '2': 'LoRa',
-}
-
 // ─── Helpers ──────────────────────────────────────────────
-function isRecentUpdate(update: string, thresholdMinutes = 15): boolean {
-  if (!update) return false
-  // format จาก API: "11/06/2026 14:11"
-  const [datePart, timePart] = update.split(' ')
-  if (!datePart || !timePart) return false
-  const [dd, mm, yyyy] = datePart.split('/')
-  const iso  = `${yyyy}-${mm}-${dd}T${timePart}:00`
-  const diff = (Date.now() - new Date(iso).getTime()) / 60000
-  return diff <= thresholdMinutes
-}
-
+// ✅ แก้: ไม่ยิง /api/device/list + /api/measure/lastrecord เองแล้ว
+//    เพราะ lastrecord แบบไม่ส่ง siteid จะ 500 error (ตอบ HTML กลับมา ไม่ใช่ JSON)
+//    ใช้ allTransformers จาก useSiteData.ts แทน เพราะที่นั่นยิง lastrecord
+//    แยกทีละ site ตาม devToSite map อย่างถูกต้องอยู่แล้ว
 async function fetchDevices(): Promise<Transformer[]> {
-  const [deviceRes, measureRes] = await Promise.all([
-    fetch(`${BASE_URL}/api/device/list`).then(r => r.json()),
-    fetch(`${BASE_URL}/api/measure/lastrecord`).then(r => r.json()),
-  ])
+  const { fetchSites } = useSiteData()
+  await fetchSites()   // จะ no-op ถ้าเคยโหลดแล้ว (มี isSiteFetched guard ในตัว)
 
-  const lastUpdate: string = measureRes?.msg?.update ?? ''
-  const isOnline = isRecentUpdate(lastUpdate)
+  if (siteTransformers.length === 0) {
+    throw new Error('[fetchDevices] ไม่มีข้อมูล transformer จาก useSiteData (เช็คว่า site/install/device list โหลดสำเร็จหรือไม่)')
+  }
 
-  return (deviceRes.msg as any[]).map((d: any, index: number) => ({
-    // ── จาก API ──────────────────────────────────────────
-    id:          String(d.id),
-    deviceId:    d.serial,
-    description: d.detail,
-    commType:    TYPE_MAP[d.type] ?? d.type,
-    status:      isOnline ? 'online' : 'offline',
+  return siteTransformers.map((t, index) => ({
+    id:           t.id,
+    status:       t.status,
+    deviceId:     t.deviceId,
+    description:  '',
+    commType:     t.commType,
 
     // ── mock ชั่วคราว (รอ backend เพิ่ม field) ───────────
-    peaNo:        `M-${String(d.id).padStart(2, '0')}`,
-    brand:        'Unknown',
+    peaNo:        t.peaNo,
+    brand:        t.brand,
     model:        'TX-2000',
-    serialNumber: d.serial,
+    serialNumber: t.deviceId,
     feederNo:     index % 2 === 0 ? 'Feeder 01' : 'Feeder 02',
-    rated:        160,
-    ratedCT:      250,
-    ipSim:        '',
-    maxLoad:      80,
+    rated:        t.rated,
+    ratedCT:      t.ratedCT,
+    ipSim:        t.ipSim,
+    maxLoad:      t.maxLoad,
     maxFeedIn:    15,
     province:     '',
-    location:     '',
-    lat:          0,
-    long:         0,
-    installDate:  '',
+    location:     t.location,
+    lat:          t.lat,
+    long:         t.long,
+    installDate:  t.installDate,
     imagePreview: '',
   }))
 }
@@ -91,23 +81,18 @@ let   isInitialized       = false
 export function useTransformer() {
   const transformers = globalTransformers
 
-  // watch เซฟ localStorage ทุกครั้งที่มีการเปลี่ยนแปลง
   if (typeof window !== 'undefined' && !isInitialized) {
     watch(transformers, (newVal) => {
       localStorage.setItem('pea_transformers_data', JSON.stringify(newVal))
     }, { deep: true })
   }
 
-  // ─── Load จาก API ───────────────────────────────────────
   async function loadFromAPI() {
     if (isInitialized) return
-    isInitialized = true
 
     try {
       const apiData = await fetchDevices()
 
-      // merge กับ localStorage: รักษา field ที่ user เคยแก้ไข (peaNo, brand ฯลฯ)
-      // แต่ status ใช้จาก API เสมอ
       const saved = localStorage.getItem('pea_transformers_data')
       if (saved) {
         const local: Transformer[] = JSON.parse(saved)
@@ -120,8 +105,10 @@ export function useTransformer() {
       } else {
         globalTransformers.value = apiData
       }
+
+      isInitialized = true
     } catch (e) {
-      console.error('[useTransformer] API fetch failed, falling back to localStorage', e)
+      console.error('[useTransformer] loadFromAPI failed:', e)
       const saved = localStorage.getItem('pea_transformers_data')
       if (saved) {
         try { globalTransformers.value = JSON.parse(saved) } catch {}
@@ -129,7 +116,6 @@ export function useTransformer() {
     }
   }
 
-  // ─── Filter / Pagination ────────────────────────────────
   const searchQuery  = ref('')
   const statusFilter = ref('')
   const page         = ref(1)
@@ -152,7 +138,6 @@ export function useTransformer() {
     Math.max(1, Math.ceil(filteredData.value.length / perPage))
   )
 
-  // ─── Modal ──────────────────────────────────────────────
   const showModal  = ref(false)
   const modalMode  = ref<ModalMode>('add')
   const formError  = ref('')

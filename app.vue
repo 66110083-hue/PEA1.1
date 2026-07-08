@@ -309,7 +309,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-1, #6a2c70);
+  color: var(--color-text-1, #111827);
 }
 
 .summary-dot {
