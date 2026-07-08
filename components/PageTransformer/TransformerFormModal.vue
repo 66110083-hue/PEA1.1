@@ -14,6 +14,7 @@ defineEmits(['close', 'save', 'delete'])
 const provinces = PROVINCES
 const commTypes = COMM_TYPES
 const readonly  = computed(() => props.mode === 'view')
+const isDelete  = computed(() => props.mode === 'delete')   // ✅ เพิ่ม
 
 const modeIcon = computed(() => ({
   add: 'ti-plus', edit: 'ti-pencil', view: 'ti-eye', delete: 'ti-trash'
@@ -24,7 +25,6 @@ const modeTitle = computed(() => ({
   view: 'View Transformer', delete: 'Delete Transformer',
 }[props.mode]))
 
-// ฟังก์ชันย่อขนาดรูปภาพ (เหมือนเดิม)
 function handleFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
@@ -62,7 +62,34 @@ function handleDrop(e: DragEvent) {
 <template>
   <Teleport to="body">
     <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
-      <div class="sg-form-card">
+
+      <!-- ✅ โหมด Delete: หน้ายืนยันแยกต่างหาก ไม่ใช้ฟอร์มเต็ม -->
+      <div v-if="isDelete" class="sg-form-card sg-delete-card">
+        <div class="delete-view">
+          <i class="ti ti-alert-triangle delete-icon"></i>
+          <p class="delete-text">ยืนยันการลบหม้อแปลง?</p>
+          <p class="delete-target">
+            {{ form.peaNo }} <span style="color:#9aa0b0">({{ form.deviceId }})</span>
+          </p>
+          <p style="font-size:12px;color:#9aa0b0;margin-top:8px">
+            รายการนี้จะถูกซ่อนจากตาราง แต่สามารถกู้คืนได้ภายหลังจากปุ่ม "Restore"
+          </p>
+        </div>
+
+        <div v-if="error" class="sg-error-box">
+          <i class="ti ti-alert-circle"></i> {{ error }}
+        </div>
+
+        <div class="sg-actions" style="justify-content:center;margin-top:20px">
+          <button class="sg-btn sg-btn-outline" @click="$emit('close')">Cancel</button>
+          <button class="sg-btn sg-btn-danger" @click="$emit('delete')">
+            <i class="ti ti-trash"></i> ลบรายการ
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ โหมด add / edit / view: ฟอร์มเต็มเหมือนเดิม ═══ -->
+      <div v-else class="sg-form-card">
         
         <div class="sg-header">
           <div class="sg-breadcrumb">
@@ -79,6 +106,10 @@ function handleDrop(e: DragEvent) {
         </div>
 
         <div class="sg-divider-gold"></div>
+
+        <div v-if="error" class="sg-error-box">
+          <i class="ti ti-alert-circle"></i> {{ error }}
+        </div>
 
        <div class="sg-body-grid">
           
@@ -214,27 +245,26 @@ function handleDrop(e: DragEvent) {
               </div>
             </div>
 
-      </div>
+          </div>
         </div>
-      </div> 
       </div>
-       </Teleport>
+
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
-/* พื้นหลังดำใส */
 .modal-overlay {
   position:fixed; inset:0; background:rgba(0,0,0,0.5);
   display:flex; align-items:center; justify-content:center; z-index:1000;
   padding: 20px;
 }
 
-/* ตัวกล่องฟอร์มหลัก */
 .sg-form-card {
   background: #ffffff;
   border-radius: 8px;
   width: 100%;
-  max-width: 1000px; /* บังคับกว้าง 1000px เพื่อใส่ 2 คอลัมน์ */
+  max-width: 1000px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 10px 40px rgba(0,0,0,0.2);
@@ -242,7 +272,12 @@ function handleDrop(e: DragEvent) {
   font-family: var(--font-sans);
 }
 
-/* ส่วนหัว */
+/* ✅ การ์ด delete แคบกว่า ไม่ต้องเต็มความกว้างฟอร์ม */
+.sg-delete-card {
+  max-width: 420px;
+  padding: 32px;
+}
+
 .sg-header {
   display: flex;
   justify-content: space-between;
@@ -250,10 +285,9 @@ function handleDrop(e: DragEvent) {
   margin-bottom: 12px;
 }
 .sg-breadcrumb { font-size: 18px; }
-.sg-title { font-weight: 700; color: #6a2c70; } /* สีม่วง SGtech */
+.sg-title { font-weight: 700; color: #6a2c70; }
 .text-muted { color: #9aa0b0; }
 
-/* ปุ่มกด */
 .sg-actions { display: flex; gap: 10px; }
 .sg-btn {
   display: flex; align-items: center; gap: 6px;
@@ -264,38 +298,34 @@ function handleDrop(e: DragEvent) {
 .sg-btn:hover { opacity: 0.85; }
 .sg-btn-outline { background: #9aa0b0; color: white; }
 .sg-btn-primary { background: #6a2c70; color: white; }
+.sg-btn-danger  { background: #e74c3c; color: white; }   /* ✅ เพิ่ม */
 
-/* เส้นกั้นสีทอง/น้ำตาล */
 .sg-divider-gold {
   height: 4px;
-  background: #b58d4a; /* สีทอง */
+  background: #b58d4a;
   border-radius: 2px;
   margin-bottom: 24px;
 }
 
-/* กล่องแจ้งเตือน Error */
 .sg-error-box {
   background: #fcebeb; color: #e74c3c;
   padding: 10px 14px; border-radius: 6px; font-size: 13px;
   margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
 }
 
-/* แบ่ง 2 คอลัมน์ */
 .sg-body-grid {
   display: grid;
-  grid-template-columns: 1.3fr 1fr; /* ซ้ายใหญ่กว่าขวา */
+  grid-template-columns: 1.3fr 1fr;
   gap: 40px;
 }
 
-/* หัวข้อหมวดหมู่ */
 .sg-section-title {
-  color: #b58d4a; /* สีทอง */
+  color: #b58d4a;
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
 }
 
-/* Input Grid (2 คอลัมน์ย่อย) */
 .sg-input-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -303,11 +333,10 @@ function handleDrop(e: DragEvent) {
 }
 .sg-field { display: flex; flex-direction: column; gap: 6px; }
 .sg-field label {
-  font-size: 12px; font-weight: 600; color: #6a2c70; /* สีม่วง */
+  font-size: 12px; font-weight: 600; color: #6a2c70;
 }
 .req { color: #e74c3c; }
 
-/* หน้าตาช่อง Input/Select */
 .sg-field input, .sg-field select {
   padding: 8px 12px;
   border: 1px solid #d1d5db;
@@ -319,7 +348,6 @@ function handleDrop(e: DragEvent) {
 .sg-field input:focus, .sg-field select:focus { border-color: #6a2c70; }
 .sg-field input:disabled, .sg-field select:disabled { background: #f4f5f7; color: #9aa0b0; }
 
-/* พื้นที่อัปโหลดรูป */
 .sg-upload-dropzone {
   border: 2px dashed #d1d5db;
   border-radius: 8px;
@@ -334,7 +362,6 @@ function handleDrop(e: DragEvent) {
 .sg-upload-dropzone p { font-size: 13px; font-weight: 600; color: #6a2c70; margin-bottom: 4px;}
 .sg-upload-dropzone small { font-size: 11px; color: #9aa0b0; }
 
-/* รูปพรีวิว */
 .upload-preview-img { max-height: 120px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .btn-remove-img {
   position: absolute; top: -10px; right: -10px;
@@ -342,13 +369,11 @@ function handleDrop(e: DragEvent) {
   width: 24px; height: 24px; cursor: pointer; font-size: 11px;
 }
 
-/* หน้าจอลบ */
-.delete-view { text-align: center; padding: 40px 0; }
+.delete-view { text-align: center; padding: 20px 0; }
 .delete-icon { font-size: 50px; color: #e74c3c; display: block; margin-bottom: 16px; }
 .delete-text { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 .delete-target { font-size: 14px; color: #5a6072; }
 
-/* รองรับจอมือถือ (Responsive) */
 @media (max-width: 768px) {
   .sg-body-grid { grid-template-columns: 1fr; gap: 24px; }
   .sg-input-grid { grid-template-columns: 1fr; }

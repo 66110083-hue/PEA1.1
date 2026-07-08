@@ -27,24 +27,18 @@ export const emptyForm = (): Transformer => ({
 })
 
 const { allSites } = useSiteData()
-// provinces ไม่ได้มาจาก API ชั่วคราว รอ backend เพิ่ม field
 export const PROVINCES  = [
   'กรุงเทพมหานคร','นนทบุรี','ปทุมธานี','สมุทรปราการ','นครปฐม',
   'สมุทรสาคร','อยุธยา','สระบุรี','ชลบุรี','ระยอง',
 ]
 export const COMM_TYPES = ['4G Cellular', 'WiFi', 'LoRa', 'Fiber']
 
-// ─── Helpers ──────────────────────────────────────────────
-// ✅ แก้: ไม่ยิง /api/device/list + /api/measure/lastrecord เองแล้ว
-//    เพราะ lastrecord แบบไม่ส่ง siteid จะ 500 error (ตอบ HTML กลับมา ไม่ใช่ JSON)
-//    ใช้ allTransformers จาก useSiteData.ts แทน เพราะที่นั่นยิง lastrecord
-//    แยกทีละ site ตาม devToSite map อย่างถูกต้องอยู่แล้ว
 async function fetchDevices(): Promise<Transformer[]> {
   const { fetchSites } = useSiteData()
-  await fetchSites()   // จะ no-op ถ้าเคยโหลดแล้ว (มี isSiteFetched guard ในตัว)
+  await fetchSites()
 
   if (siteTransformers.length === 0) {
-    throw new Error('[fetchDevices] ไม่มีข้อมูล transformer จาก useSiteData (เช็คว่า site/install/device list โหลดสำเร็จหรือไม่)')
+    throw new Error('[fetchDevices] ไม่มีข้อมูล transformer จาก useSiteData')
   }
 
   return siteTransformers.map((t, index) => ({
@@ -53,8 +47,6 @@ async function fetchDevices(): Promise<Transformer[]> {
     deviceId:     t.deviceId,
     description:  '',
     commType:     t.commType,
-
-    // ── mock ชั่วคราว (รอ backend เพิ่ม field) ───────────
     peaNo:        t.peaNo,
     brand:        t.brand,
     model:        'TX-2000',
@@ -78,8 +70,21 @@ async function fetchDevices(): Promise<Transformer[]> {
 const globalTransformers = ref<Transformer[]>([])
 let   isInitialized       = false
 
+// ✅ เก็บ "ตัวเต็ม" ของ record ที่ถูกซ่อนไว้ต่างหาก (ไม่ใช่แค่ id)
+//    เพื่อให้ restore ได้โดยไม่ต้องพิมพ์ข้อมูลใหม่
+const HIDDEN_KEY = 'pea_transformers_hidden'
+
+function getHidden(): Transformer[] {
+  try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]') }
+  catch { return [] }
+}
+function saveHidden(rows: Transformer[]) {
+  localStorage.setItem(HIDDEN_KEY, JSON.stringify(rows))
+}
+
 export function useTransformer() {
   const transformers = globalTransformers
+  const hiddenList   = ref<Transformer[]>(getHidden())
 
   if (typeof window !== 'undefined' && !isInitialized) {
     watch(transformers, (newVal) => {
@@ -89,22 +94,19 @@ export function useTransformer() {
 
   async function loadFromAPI() {
     if (isInitialized) return
-
     try {
-      const apiData = await fetchDevices()
+      const apiData    = await fetchDevices()
+      const hiddenIds  = new Set(getHidden().map(h => h.id))
+      const saved      = localStorage.getItem('pea_transformers_data')
+      const local: Transformer[] = saved ? JSON.parse(saved) : []
 
-      const saved = localStorage.getItem('pea_transformers_data')
-      if (saved) {
-        const local: Transformer[] = JSON.parse(saved)
-        globalTransformers.value = apiData.map(apiRow => {
+      // ✅ กรองตัวที่ถูกซ่อนออกจากรายการที่แสดง (แต่ apiData ตัวเต็มยังอยู่)
+      globalTransformers.value = apiData
+        .filter(apiRow => !hiddenIds.has(apiRow.id))
+        .map(apiRow => {
           const localRow = local.find(l => l.id === apiRow.id)
-          return localRow
-            ? { ...apiRow, ...localRow, status: apiRow.status }
-            : apiRow
+          return localRow ? { ...apiRow, ...localRow, status: apiRow.status } : apiRow
         })
-      } else {
-        globalTransformers.value = apiData
-      }
 
       isInitialized = true
     } catch (e) {
@@ -186,9 +188,30 @@ export function useTransformer() {
     closeModal()
   }
 
+  // ✅ ลบ = ซ่อนเท่านั้น เก็บ "ตัวเต็ม" ไว้ใน hiddenList เพื่อ restore ทีหลัง
   function deleteRow() {
+    const rowToHide = transformers.value.find(r => r.id === editingId.value)
+    if (rowToHide) {
+      const hidden = getHidden()
+      hidden.push(rowToHide)
+      saveHidden(hidden)
+      hiddenList.value = hidden
+    }
     transformers.value = transformers.value.filter(r => r.id !== editingId.value)
     closeModal()
+  }
+
+  // ✅ ใหม่: ดึงตัวที่ซ่อนไว้กลับมาแสดง ไม่ต้องกรอกข้อมูลใหม่
+  function restoreRow(id: string) {
+    const hidden  = getHidden()
+    const idx     = hidden.findIndex(h => h.id === id)
+    if (idx < 0) return
+
+    const [restored] = hidden.splice(idx, 1)
+    saveHidden(hidden)
+    hiddenList.value = hidden
+
+    transformers.value.push(restored)
   }
 
   function exportCSV() {
@@ -207,6 +230,7 @@ export function useTransformer() {
     transformers, filteredData, totalPages, availableSites: allSites,
     searchQuery, statusFilter, page,
     showModal, modalMode, formError, form,
+    hiddenList, restoreRow,        // ✅ export เพิ่ม
     openAdd, openView, openEdit, confirmDelete, closeModal, saveForm, deleteRow, exportCSV,
   }
 }

@@ -4,18 +4,27 @@ import TransformerFormModal from '~/components/PageTransformer/TransformerFormMo
 import TransformerDetail    from '~/components/PageTransformer/TransformerDetail.vue'
 
 import { useTransformer }   from '~/composables/useTransformer'
-import { ref, onMounted }   from 'vue'  // ← เพิ่ม onMounted
+import { ref, onMounted }   from 'vue'
 
 const {
-  loadFromAPI,                          // ← เพิ่ม
+  loadFromAPI,
   transformers, filteredData, totalPages,
   searchQuery, statusFilter, page,
   showModal, modalMode, formError, form,
+  hiddenList, restoreRow,               // ← เพิ่ม
   openAdd, openEdit, confirmDelete,
   closeModal, saveForm, deleteRow, exportCSV,
 } = useTransformer()
 
-onMounted(() => loadFromAPI())          // ← เพิ่ม
+onMounted(() => loadFromAPI())
+
+// ─── Restore Dropdown ─────────────────────────────────────
+const showRestoreMenu = ref(false)
+function toggleRestoreMenu() { showRestoreMenu.value = !showRestoreMenu.value }
+function handleRestore(id: string) {
+  restoreRow(id)
+  if (hiddenList.value.length === 0) showRestoreMenu.value = false
+}
 
 // ─── Detail View ──────────────────────────────────────────
 const showDetail          = ref(false)
@@ -66,7 +75,7 @@ function backToList() {
 }
 .tm-btn:hover { opacity:0.85; }
 .tm-btn-green   { background:var(--color-green); color:white; border:none; }
-.tm-btn-outline { background:transparent; color:var(--color-text-2); border:1px solid var(--color-border-md); }
+.tm-btn-outline { background:transparent; color:var(--color-text-2); border:1px solid var(--color-border-md); position:relative; }
 .page-btn {
   width:28px; height:28px; border-radius:4px;
   border:1px solid var(--color-border); background:var(--color-bg);
@@ -83,6 +92,32 @@ function backToList() {
 .td-breadcrumb { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--color-text-3); }
 .td-breadcrumb .sep    { color:var(--color-border-md); }
 .td-breadcrumb .active { color:var(--color-text-1); font-weight:600; }
+
+/* ✅ Restore dropdown */
+.restore-wrap { position:relative; }
+.restore-badge {
+  background:#e74c3c; color:white; border-radius:999px;
+  font-size:10px; padding:1px 6px; margin-left:4px;
+}
+.restore-menu {
+  position:absolute; top:calc(100% + 6px); right:0; z-index:50;
+  background:var(--color-bg); border:1px solid var(--color-border-md);
+  border-radius:var(--radius-md); box-shadow:0 8px 24px rgba(0,0,0,0.12);
+  width:280px; max-height:320px; overflow-y:auto; padding:6px;
+}
+.restore-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 10px; border-radius:6px; font-size:12px;
+}
+.restore-item:hover { background:var(--color-surface-2); }
+.restore-item .info { display:flex; flex-direction:column; gap:2px; }
+.restore-item .peano { font-weight:600; font-family:var(--font-mono); }
+.restore-item .devid { color:var(--color-text-3); font-size:11px; }
+.restore-btn-sm {
+  padding:4px 10px; border-radius:6px; border:none; cursor:pointer;
+  background:var(--color-green); color:white; font-size:11px; font-weight:500;
+}
+.restore-empty { text-align:center; padding:20px; color:var(--color-text-3); font-size:12px; }
 </style>
 
 <template>
@@ -102,7 +137,6 @@ function backToList() {
         </button>
       </div>
 
-     
       <TransformerDetail :transformer-id="toTransformerId(selectedTransformer)" />
 
     </template>
@@ -124,6 +158,28 @@ function backToList() {
               <option value="online">Online</option>
               <option value="offline">Offline</option>
             </select>
+
+            <!-- ✅ ปุ่ม Restore -->
+            <div class="restore-wrap">
+              <button class="tm-btn tm-btn-outline" @click="toggleRestoreMenu">
+                <i class="ti ti-history"/> Restore
+                <span v-if="hiddenList.length" class="restore-badge">{{ hiddenList.length }}</span>
+              </button>
+
+              <div v-if="showRestoreMenu" class="restore-menu">
+                <div v-if="hiddenList.length === 0" class="restore-empty">
+                  ไม่มีรายการที่ถูกลบ
+                </div>
+                <div v-for="row in hiddenList" :key="row.id" class="restore-item">
+                  <div class="info">
+                    <span class="peano">{{ row.peaNo }}</span>
+                    <span class="devid">{{ row.deviceId }}</span>
+                  </div>
+                  <button class="restore-btn-sm" @click="handleRestore(row.id)">กู้คืน</button>
+                </div>
+              </div>
+            </div>
+
             <button class="tm-btn tm-btn-outline" @click="exportCSV"><i class="ti ti-download"/> Export</button>
             <button class="tm-btn tm-btn-green"   @click="openAdd"><i class="ti ti-plus"/> Add Transformer</button>
           </div>
