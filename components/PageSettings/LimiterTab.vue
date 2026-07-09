@@ -20,8 +20,6 @@ const { limiter, saveLimiterConfig } = useSettings()
         <label>Select Device Type</label>
         <select v-model="limiter.deviceType" :disabled="!limiter.enabled">
           <option value="Transformer">Transformer</option>
-          <option value="EV">EV</option>
-          <option value="PV">PV</option>
         </select>
       </div>
     </div>
