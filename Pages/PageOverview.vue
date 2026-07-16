@@ -4,18 +4,13 @@ import { useDashboard, METRIC_TABS } from '~/composables/useDashboard.ts'
 import { useSiteData } from '~/composables/useSiteData'
 import '~/assets/css/dashboard-compact.css'
 
-// Import Components ของหน้า Dashboard
 import PhaseCard      from '~/components/PageOverview/PhaseCard.vue'
 import EnergyFilter   from '~/components/PageOverview/EnergyFilter.vue'
 import PhaseSelector  from '~/components/PageOverview/PhaseSelector.vue'
 import UnifiedAnalysisChart from '~/components/Common/UnifiedAnalysisChart.vue'
 
-// Import แผนที่แบบ Async (เพื่อป้องกันปัญหา Window is not defined บน Nuxt/SSR)
-const SiteMap = defineAsyncComponent(() =>
-  import('~/components/Page map/SiteMap.vue')
-)
+const SiteMap = defineAsyncComponent(() => import('~/components/Page map/SiteMap.vue'))
 
-// 1. ดึง State ของกราฟและข้อมูลการใช้พลังงานมาจาก useDashboard
 const {
   activeMetric, activePhases,
   hasData, isLoading,
@@ -24,82 +19,53 @@ const {
   allData
 } = useDashboard()
 
-// 2. ดึง State ของตำแหน่งไซต์ทั้งหมดจาก API
 const { allSites, fetchSites } = useSiteData()
-
-// State กลางสำหรับเก็บ ID ไซต์ที่ผู้ใช้เลือก (ไม่มีจังหวัดและอำเภอแล้ว)
 const selectedSiteId = ref<string | null>(null)
 
-// 3. โหลดข้อมูลจุดติดตั้งบนแผนที่ทันทีที่เปิดหน้านี้
 onMounted(() => {
   fetchSites()
 })
 
-// ─── การคำนวณและเตรียมข้อมูลสำหรับ ECharts ─────────────────────────
-
-// สร้างข้อมูลแกน X (เวลา)
 const chartXData = computed(() => {
   if (!allData.value) return []
   return allData.value.map((d: any) => {
     if (!d.timestamp) return d.label
-
     const dateObj = new Date(d.timestamp)
     const day   = String(dateObj.getDate()).padStart(2, '0')
     const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-    
-    // แปลงจากโชว์แค่ "18:30" ให้กลายเป็น "18/06 18:30" 
     return `${day}/${month} ${d.label}`
   })
 })
 
-// สร้างข้อมูลแกน Y (เส้นกราฟตามเฟสและประเภทข้อมูล)
 const chartSeries = computed(() => {
   if (!allData.value || allData.value.length === 0) return []
   const metric = activeMetric.value as 'current' | 'voltage' | 'power'
-  
   return PHASES.filter((p: any) => activePhases.value.includes(p.id)).map((p: any) => {
     return {
       name: `เฟส ${p.id}`,
       color: p.color,
       data: allData.value.map((d: any) => d[metric]?.[p.id] || 0),
-      showArea: metric === 'power' // เปิดแรเงาใต้กราฟถ้าเป็น Power
+      showArea: metric === 'power'
     }
   })
 })
 
-// ─── การจัดการข้อมูลแผนที่ (SiteMap) ─────────────────────────────────
-
-// กรองหมุดที่จะแสดงบนแผนที่
-const filteredSites = computed(() => {
-  // ถ้ามีการเลือกไซต์ใดไซต์หนึ่ง ให้แสดงแค่หมุดนั้น
-  if (selectedSiteId.value) {
-    return allSites.filter(s => s.id === selectedSiteId.value)
-  }
-  // ถ้าไม่ได้เลือก ให้แสดงหมุดทั้งหมดที่ได้จาก API
-  return allSites
-})
-
-// รับ Event จาก EnergyFilter เมื่อเปลี่ยนค่า Dropdown
 function handleLocationUpdate(payload: { siteId: string }) {
   selectedSiteId.value = payload.siteId || null
 }
 
-// รับ Event จาก EnergyFilter เมื่อกดปุ่ม "ดึงข้อมูล"
 function handleFilter(payload: { siteId: string; startDate: string; endDate: string }) {
   selectedSiteId.value = payload.siteId || null
-  apiFilter(payload) // ส่ง Payload ข้ามไปให้ Dashboard คำนวณกราฟ
+  apiFilter(payload)
 }
 
-// รับ Event จาก SiteMap เมื่อคลิกที่หมุดบนแผนที่
 function onMapSelect(id: string) {
-  // กดซ้ำเพื่อยกเลิก หรือกดเพื่อเลือกหมุด
   selectedSiteId.value = selectedSiteId.value === id ? null : id
 }
 </script>
 
 <template>
   <div class="main-content">
-
     <template v-if="hasData">
       <div class="phase-grid">
         <PhaseCard
@@ -121,7 +87,6 @@ function onMapSelect(id: string) {
           <i class="ti ti-chart-line text-green" />
           <span>ข้อมูลย้อนหลัง</span>
         </div>
-        
         <div class="controls-group">
           <EnergyFilter 
             :loading="isLoading" 
@@ -143,7 +108,6 @@ function onMapSelect(id: string) {
       <div v-if="!hasData && !isLoading" class="empty-state">
         <i class="ti ti-map-pin" style="font-size:32px;color:var(--color-text-3)" />
         <div style="font-weight:500;color:var(--color-text-2)">เลือกจุดติดตั้งและวันที่</div>
-        <div style="font-size:12px;color:var(--color-text-3)">แล้วกด "ดึงข้อมูล" เพื่อแสดงผลกราฟ</div>
       </div>
 
       <div v-else-if="isLoading" class="empty-state">
@@ -163,7 +127,7 @@ function onMapSelect(id: string) {
 
     <template v-if="hasData">
       <div class="equal-height-row">
-        
+        <!-- สถิติประมวลผล (แก้ไขให้ตรงและไม่เบี้ยว) -->
         <div class="card dashboard-card">
           <div class="card-inner">
             <div class="card-title mb-4">
@@ -171,16 +135,20 @@ function onMapSelect(id: string) {
               <span>สถิติประมวลผล</span>
             </div>
             <div class="card-body-content">
-              <div v-for="s in statistics" :key="s.label" class="stats-row-custom">
-                <span class="text-muted">{{ s.label }}</span>
-                <span class="font-mono fw-bold stat-value" :style="{ color: s.color }">
-                  {{ s.value }}
-                </span>
+              <div v-for="s in statistics" :key="s.label" class="stats-row-custom" 
+                   style="display: grid; grid-template-columns: 1fr auto; align-items: start; padding: 10px 0; border-bottom: 1px solid #f3f4f6; min-height: 58px;">
+                <span class="text-muted" style="font-size: 13px; align-self: center;">{{ s.label }}</span>
+                <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                  <span class="font-mono fw-bold stat-value" :style="{ color: s.color }">{{ s.value }}</span>
+                  <div v-if="s.sub" style="font-size: 10px; color: var(--color-text-3); margin-top: 2px; line-height: 1.2;">{{ s.sub }}</div>
+                  <div v-else style="height: 12px;"></div> <!-- พื้นที่ว่างกันแถวเบี้ยว -->
+                </div>
               </div>
             </div>
           </div>
         </div>
 
+        <!-- ความสมดุล 3 เฟส -->
         <div class="card dashboard-card">
           <div class="card-inner">
             <div class="card-title mb-4">
@@ -188,42 +156,33 @@ function onMapSelect(id: string) {
               <span>ความสมดุล 3 เฟส (เฉลี่ย)</span>
             </div>
             <div class="card-body-content">
-              <div v-for="ph in balanceData" :key="ph.id" class="balance-item">
-                <div class="balance-head">
-                  <span class="text-muted">เฟส {{ ph.id }}</span>
-                  <span class="font-mono fw-bold stat-value">
-                    {{ ph.avg.toFixed(1) }}
-                    <small class="text-3">{{ unit }}</small>
+              <div v-for="ph in balanceData" :key="ph.id" class="balance-item" style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                  <span class="text-muted" style="font-size: 13px;">เฟส {{ ph.id }}</span>
+                  <span class="font-mono fw-bold" style="font-size: 14px;">
+                    {{ ph.avg.toFixed(1) }} <small class="text-3" style="font-size: 11px;">{{ unit }}</small>
                   </span>
                 </div>
-                <div class="be-bar-global">
-                  <div class="be-fill-global" :style="{ width: ph.pct+'%', background: ph.color }" />
+                <div style="background: #f3f4f6; height: 6px; border-radius: 3px; overflow: hidden; width: 100%;">
+                  <div :style="{ width: ph.pct + '%', background: ph.color, height: '100%', borderRadius: '3px', transition: 'width 0.6s' }" />
+                </div>
+                <div style="font-size: 10px; color: var(--color-text-3); text-align: right; margin-top: 4px;">
+                   {{ ph.pct.toFixed(0) }}% ของโหลดสูงสุด
                 </div>
               </div>
             </div>
           </div>
         </div>
-
       </div>
     </template>
 
     <ClientOnly>
-      <SiteMap
-        :sites="allSites"
-        :selected-site-id="selectedSiteId"
-        @select="onMapSelect"
-      />
+      <SiteMap :sites="allSites" :selected-site-id="selectedSiteId" @select="onMapSelect" />
     </ClientOnly>
-
   </div>
 </template>
 
 <style scoped>
-/* เพิ่มคลาสนี้ป้องกันกรณีไม่ได้ประกาศแอนิเมชัน spin ไว้ที่ไฟล์ global */
-.spin-icon {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  100% { transform: rotate(360deg); }
-}
+.spin-icon { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
 </style>

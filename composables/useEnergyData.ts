@@ -89,17 +89,93 @@ export const useEnergyData = (
     }, {})
   })
 
+  // ─── 4. สถิติประมวลผล (แสดงค่าวิเคราะห์เชิงลึก พร้อม วันที่และเวลา) ───
   const statistics = computed(() => {
-    const key  = activeMetric.value
-    const vals = allData.value.flatMap(d =>
-      activePhases.value.map(ph => d[key]?.[ph] ?? 0)
-    )
-    if (!vals.length) return []
-    const sum = vals.reduce((a, b) => a + b, 0)
+    const key = activeMetric.value
+    if (!allData.value.length) return []
+
+    // ฟังก์ชันช่วยจัด Format วันที่เวลาให้เป็น DD/MM HH:mm
+    const fmtDT = (date: Date) => {
+      const d = String(date.getDate()).padStart(2, '0')
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const hh = String(date.getHours()).padStart(2, '0')
+      const mm = String(date.getMinutes()).padStart(2, '0')
+      return `${d}/${m} ${hh}:${mm}`
+    }
+
+    // 4.1 หาค่าเฉลี่ยช่วงใช้งาน (Active Avg)
+    const activeVals = allData.value
+      .flatMap(d => [d[key]?.A, d[key]?.B, d[key]?.C])
+      .filter(v => v > 0.5)
+    
+    const avgActive = activeVals.length ? (activeVals.reduce((a, b) => a + b, 0) / activeVals.length) : 0
+
+    // 4.2 หาค่า Peak พร้อมเวลาและเฟส
+    let maxVal = -1
+    let peakInfo = ''
+    let peakTime = ''
+    
+    allData.value.forEach(d => {
+      ['A', 'B', 'C'].forEach(ph => {
+        const val = d[key]?.[ph] ?? 0
+        if (val > maxVal) {
+          maxVal = val
+          peakInfo = ` (เฟส ${ph})`
+          peakTime = fmtDT(new Date(d.timestamp))
+        }
+      })
+    })
+
+    // 4.3 หาความไม่สมดุลสูงสุด (Unbalance/Sag) พร้อมเวลา
+    let unbalanceVal = 0
+    let unbalanceTime = ''
+    let unbalanceLabel = key === 'voltage' ? 'แรงดันตกต่ำสุด (Sag)' : 'ส่วนต่างกระแสสูงสุด'
+    let unbalanceColor = 'var(--color-blue)'
+
+    if (key === 'voltage') {
+       unbalanceVal = 999 // เริ่มต้นด้วยค่าสูงไว้ก่อน
+       allData.value.forEach(d => {
+         const vs = [d[key]?.A ?? 0, d[key]?.B ?? 0, d[key]?.C ?? 0].filter(v => v > 100)
+         if (vs.length > 0) {
+           const min = Math.min(...vs)
+           if (min < unbalanceVal) {
+             unbalanceVal = min
+             unbalanceTime = fmtDT(new Date(d.timestamp))
+           }
+         }
+       })
+       unbalanceColor = unbalanceVal < 200 ? 'var(--color-orange)' : 'var(--color-blue)'
+    } else {
+       allData.value.forEach(d => {
+         const a = d[key]?.A ?? 0, b = d[key]?.B ?? 0, c = d[key]?.C ?? 0
+         if (Math.max(a, b, c) > 1) { 
+            const diff = Math.max(a, b, c) - Math.min(a, b, c)
+            if (diff > unbalanceVal) {
+              unbalanceVal = diff
+              unbalanceTime = fmtDT(new Date(d.timestamp))
+            }
+         }
+       })
+       unbalanceColor = unbalanceVal > 10 ? 'var(--color-orange)' : 'var(--color-blue)'
+    }
+
     return [
-      { label: 'ค่าเฉลี่ยรวม (1,000 จุด)', value: `${(sum / vals.length).toFixed(1)} ${unit.value}` },
-      { label: 'สูงสุด (Peak)',             value: `${Math.max(...vals).toFixed(1)} ${unit.value}`, color: 'var(--color-red)'  },
-      { label: 'ต่ำสุด (Min)',              value: `${Math.min(...vals).toFixed(1)} ${unit.value}`, color: 'var(--color-blue)' },
+      { 
+        label: 'ค่าเฉลี่ยช่วงใช้งาน', 
+        value: `${avgActive.toFixed(1)} ${unit.value}` 
+      },
+      { 
+        label: `สูงสุด (Peak)`, 
+        value: `${maxVal.toFixed(1)} ${unit.value}`,
+        sub: `${peakInfo} ${peakTime}`, // ส่งเวลาไปให้หน้า Vue
+        color: 'var(--color-red)'  
+      },
+      { 
+        label: unbalanceLabel,  
+        value: `${unbalanceVal.toFixed(1)} ${key === 'voltage' ? unit.value : ''}`,
+        sub: unbalanceTime, // ส่งเวลาไปให้หน้า Vue
+        color: unbalanceColor 
+      },
     ]
   })
 

@@ -8,6 +8,7 @@ const BASE_URL = 'https://greatways.net'
 export interface Transformer {
   id:           string
   status:       'online' | 'offline'
+  siteName:     string   // ✅ เพิ่ม
   deviceId:     string; peaNo: string; brand: string; commType: string;
   model:        string
   serialNumber: string
@@ -20,33 +21,40 @@ export interface Transformer {
 export type ModalMode = 'add' | 'edit' | 'view' | 'delete'
 
 export const emptyForm = (): Transformer => ({
-  id: '', status: 'online', deviceId: '', peaNo: '', brand: '',
+  id: '', status: 'online', siteName: '', deviceId: '', peaNo: '', brand: '',
   model: '', serialNumber: '', feederNo: '', description: '',
   commType: '', rated: 160, ratedCT: 250, ipSim: '', maxLoad: 80, maxFeedIn: 15,
   province: '', location: '', lat: 0, long: 0, installDate: '', imagePreview: '',
 })
 
 const { allSites } = useSiteData()
+// provinces ไม่ได้มาจาก API ชั่วคราว รอ backend เพิ่ม field
 export const PROVINCES  = [
   'กรุงเทพมหานคร','นนทบุรี','ปทุมธานี','สมุทรปราการ','นครปฐม',
   'สมุทรสาคร','อยุธยา','สระบุรี','ชลบุรี','ระยอง',
 ]
 export const COMM_TYPES = ['4G Cellular', 'WiFi', 'LoRa', 'Fiber']
 
+// ─── Helpers ──────────────────────────────────────────────
+// ใช้ allTransformers จาก useSiteData.ts แทนการยิง API เอง
+// เพราะที่นั่นคำนวณ status + sitename ถูกต้องอยู่แล้ว (ผ่าน devToSite/installLookup map)
 async function fetchDevices(): Promise<Transformer[]> {
   const { fetchSites } = useSiteData()
-  await fetchSites()
+  await fetchSites()   // no-op ถ้าเคยโหลดแล้ว (มี isSiteFetched guard ในตัว)
 
   if (siteTransformers.length === 0) {
-    throw new Error('[fetchDevices] ไม่มีข้อมูล transformer จาก useSiteData')
+    throw new Error('[fetchDevices] ไม่มีข้อมูล transformer จาก useSiteData (เช็คว่า site/install/device list โหลดสำเร็จหรือไม่)')
   }
 
   return siteTransformers.map((t, index) => ({
     id:           t.id,
     status:       t.status,
+    siteName:     t.siteName,   // ✅ เพิ่ม
     deviceId:     t.deviceId,
     description:  '',
     commType:     t.commType,
+
+    // ── mock ชั่วคราว (รอ backend เพิ่ม field) ───────────
     peaNo:        t.peaNo,
     brand:        t.brand,
     model:        'TX-2000',
@@ -70,8 +78,7 @@ async function fetchDevices(): Promise<Transformer[]> {
 const globalTransformers = ref<Transformer[]>([])
 let   isInitialized       = false
 
-// ✅ เก็บ "ตัวเต็ม" ของ record ที่ถูกซ่อนไว้ต่างหาก (ไม่ใช่แค่ id)
-//    เพื่อให้ restore ได้โดยไม่ต้องพิมพ์ข้อมูลใหม่
+// ✅ เก็บ "ตัวเต็ม" ของ record ที่ถูกซ่อนไว้ต่างหาก เพื่อ restore ได้โดยไม่ต้องพิมพ์ใหม่
 const HIDDEN_KEY = 'pea_transformers_hidden'
 
 function getHidden(): Transformer[] {
@@ -92,15 +99,17 @@ export function useTransformer() {
     }, { deep: true })
   }
 
+  // ─── Load จาก API ───────────────────────────────────────
   async function loadFromAPI() {
     if (isInitialized) return
+
     try {
       const apiData    = await fetchDevices()
       const hiddenIds  = new Set(getHidden().map(h => h.id))
       const saved      = localStorage.getItem('pea_transformers_data')
       const local: Transformer[] = saved ? JSON.parse(saved) : []
 
-      // ✅ กรองตัวที่ถูกซ่อนออกจากรายการที่แสดง (แต่ apiData ตัวเต็มยังอยู่)
+      // กรองตัวที่ถูกซ่อนออกจากรายการที่แสดง (apiData ตัวเต็มยังอยู่ครบใน backend เสมอ)
       globalTransformers.value = apiData
         .filter(apiRow => !hiddenIds.has(apiRow.id))
         .map(apiRow => {
@@ -108,7 +117,7 @@ export function useTransformer() {
           return localRow ? { ...apiRow, ...localRow, status: apiRow.status } : apiRow
         })
 
-      isInitialized = true
+      isInitialized = true   // set true เฉพาะตอนสำเร็จ ป้องกัน fail ครั้งแรกแล้วไม่ retry
     } catch (e) {
       console.error('[useTransformer] loadFromAPI failed:', e)
       const saved = localStorage.getItem('pea_transformers_data')
@@ -118,6 +127,7 @@ export function useTransformer() {
     }
   }
 
+  // ─── Filter / Pagination ────────────────────────────────
   const searchQuery  = ref('')
   const statusFilter = ref('')
   const page         = ref(1)
@@ -140,6 +150,7 @@ export function useTransformer() {
     Math.max(1, Math.ceil(filteredData.value.length / perPage))
   )
 
+  // ─── Modal ──────────────────────────────────────────────
   const showModal  = ref(false)
   const modalMode  = ref<ModalMode>('add')
   const formError  = ref('')
@@ -188,7 +199,7 @@ export function useTransformer() {
     closeModal()
   }
 
-  // ✅ ลบ = ซ่อนเท่านั้น เก็บ "ตัวเต็ม" ไว้ใน hiddenList เพื่อ restore ทีหลัง
+  // ลบ = ซ่อนเท่านั้น เก็บ "ตัวเต็ม" ไว้ใน hiddenList เพื่อ restore ทีหลัง ไม่แตะ API จริง
   function deleteRow() {
     const rowToHide = transformers.value.find(r => r.id === editingId.value)
     if (rowToHide) {
@@ -201,7 +212,7 @@ export function useTransformer() {
     closeModal()
   }
 
-  // ✅ ใหม่: ดึงตัวที่ซ่อนไว้กลับมาแสดง ไม่ต้องกรอกข้อมูลใหม่
+  // ดึงตัวที่ซ่อนไว้กลับมาแสดง ไม่ต้องกรอกข้อมูลใหม่
   function restoreRow(id: string) {
     const hidden  = getHidden()
     const idx     = hidden.findIndex(h => h.id === id)
@@ -215,7 +226,7 @@ export function useTransformer() {
   }
 
   function exportCSV() {
-    const headers = ['id','status','deviceId','peaNo','brand','commType','rated','ratedCT','ipSim','lat','long']
+    const headers = ['id','status','siteName','deviceId','peaNo','brand','commType','rated','ratedCT','ipSim','lat','long']
     const rows    = transformers.value.map(r =>
       headers.map(h => (r as any)[h]).join(',')
     )
@@ -230,7 +241,7 @@ export function useTransformer() {
     transformers, filteredData, totalPages, availableSites: allSites,
     searchQuery, statusFilter, page,
     showModal, modalMode, formError, form,
-    hiddenList, restoreRow,        // ✅ export เพิ่ม
+    hiddenList, restoreRow,
     openAdd, openView, openEdit, confirmDelete, closeModal, saveForm, deleteRow, exportCSV,
   }
 }
