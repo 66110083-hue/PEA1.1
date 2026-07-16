@@ -24,7 +24,7 @@ const statusColor: Record<string, string> = {
   offline: '#BA7517',
 }
 
-// 🟢 1. ฟังก์ชันสร้าง HTML Popup โดยอ่านจาก props.sites ที่ Join ข้อมูลมาแล้วโดยตรง
+// 🟢 1. ฟังก์ชันสร้าง HTML Popup
 function generatePopupHtml(site: Site) {
   const baseUrl = 'https://greatways.net/api/assets/img/site?fname=' 
   const imageUrl = site.img && site.img !== '2' ? `${baseUrl}${site.img}` : null
@@ -53,14 +53,13 @@ function generatePopupHtml(site: Site) {
         </div>
         <div style="margin-top: 8px; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e5e7eb;">
           <span style="color:#9ca3af; display:block; margin-bottom:2px; font-size: 11px;">รายละเอียดอุปกรณ์:</span>
-          <span style="color:#1f2937; font-weight: 500;">${site.devDetail || 'ไม่มีข้อมูล'}</span>
+          <span style="color:#1f2937; font-weight: 500;">${site.devDetail && site.devDetail !== '-' ? site.devDetail : 'ไม่มีข้อมูล'}</span>
         </div>
       </div>
     </div>
   `
 }
 
-// 🟢 2. สั่งเปิด Popup (ใช้เวลาโดนกดเลือกมาจากตารางหรือการ์ดข้างนอกแผนที่)
 function openPopupFor(siteId: string) {
   const marker = markerMap.get(siteId)
   if (marker) {
@@ -68,16 +67,20 @@ function openPopupFor(siteId: string) {
   }
 }
 
+// 🟢 2. ฟังก์ชันวาดหมุดใหม่ทั้งหมด
 function rebuildMarkers() {
   if (!map) return
+
+  // เคลียร์หมุดเก่าทิ้งทั้งหมดก่อน
   markerMap.forEach(m => m.remove())
   markerMap.clear()
   
+  // วาดหมุดใหม่โดยใช้ข้อมูลจาก props.sites ปัจจุบัน (ซึ่งมั่นใจได้ว่ามีข้อมูลครบแล้ว)
   props.sites.forEach(site => {
     const isSelected = props.selectedSiteId === site.id
     const marker = L.circleMarker([site.lat, site.lng], {
       radius: isSelected ? 13 : 10,
-      fillColor: statusColor[site.status],
+      fillColor: statusColor[site.status] || '#9CA3AF', // ใส่สีเผื่อข้อมูลแปลกๆ
       color: '#fff',
       weight: isSelected ? 3 : 2,
       fillOpacity: 0.9,
@@ -85,12 +88,11 @@ function rebuildMarkers() {
     
     marker.bindTooltip(`<b>${site.id}</b><br>${site.name}`, { direction: 'top' })
 
-    // 🟢 3. ประกอบร่าง HTML ยัดใส่หมุดไว้ล่วงหน้าเลย!
+    // ประกอบร่าง HTML ยัดใส่หมุดทันที ข้อมูลต้องมาครบ
     marker.bindPopup(generatePopupHtml(site), { minWidth: 260 })
     
     marker.on('click', () => {
       emit('select', site.id)
-      // ไม่ต้องสั่ง openPopup() แล้ว เพราะ Leaflet จะเด้งเปิดให้เองตอนคลิกหมุด
     })
     
     markerMap.set(site.id, marker)
@@ -107,10 +109,16 @@ function zoomToSites(sites: Site[]) {
   }, 100)
 }
 
-watch(() => props.sites, (newSites) => {
-  rebuildMarkers()
-  zoomToSites(newSites)
-}, { deep: true })
+// 🟢 3. อัปเดต Watcher อย่างระมัดระวัง (ให้ล้างหมุดแล้ววาดใหม่เลยเมื่อข้อมูล sites เปลี่ยนแปลง หรือมีจำนวนเพิ่ม/ลด)
+watch(
+  () => props.sites,
+  (newSites) => {
+      // เมื่อข้อมูลจาก API มาครบแล้วค่อยสั่งวาด
+      rebuildMarkers()
+      zoomToSites(newSites)
+  },
+  { deep: true, immediate: true } // ให้ทำงานทันทีที่ Component ถูกสร้างด้วย
+)
 
 watch(() => props.selectedSiteId, (id) => {
   markerMap.forEach((m, key) => {
@@ -131,6 +139,12 @@ watch(() => props.selectedSiteId, (id) => {
 
 onMounted(() => {
   if (!mapEl.value) return
+  
+  // ล้างแผนที่เดิม (ถ้ามี) ป้องกันบั๊กกรณี Nuxt พยายามโหลดแผนที่ซ้ำ
+  if(map) {
+      map.remove()
+  }
+
   map = L.map(mapEl.value, { zoomControl: true })
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
@@ -138,11 +152,16 @@ onMounted(() => {
   }).addTo(map)
   
   setTimeout(() => map?.invalidateSize(), 200)
-  rebuildMarkers()
-  zoomToSites(props.sites)
+
+  // ส่วนของการวาดหมุดจะถูกจัดการผ่าน watcher `{ immediate: true }` แล้ว
 })
 
-onBeforeUnmount(() => { map?.remove(); map = null })
+onBeforeUnmount(() => { 
+  if (map) {
+    map.remove()
+    map = null
+  }
+})
 </script>
 
 <template>
