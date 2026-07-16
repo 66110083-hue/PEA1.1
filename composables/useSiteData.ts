@@ -39,6 +39,7 @@ export type TransformerStatus = 'online' | 'offline'
 export interface Transformer {
   id:               string
   siteId:           string
+  siteName:         string
   status:           TransformerStatus
   deviceId:         string
   peaNo:            string
@@ -185,10 +186,15 @@ function buildTransformers(
     const site   = siteLookup.get(siteId) ?? null
     const lr     = lastRecordMap.get(siteId) ?? null
     const isOnline = lr ? isRecentUpdate(lr.update) : false
-    // lr ใช้ per-device แล้วตอนนี้ ✅
+
+    // ✅ แก้: ใช้ site?.name ที่พิสูจน์แล้วว่าถูกต้อง (มาจาก /api/site/list โดยตรง)
+    //    แทนการเดา field "sitename" จาก /api/site/install ซึ่งไม่ชัวร์ว่ามีจริง
+    const siteName = site?.name ?? '-'
+
     return {
       id:               String(d.id),
       siteId:           site?.id ?? '',
+      siteName,
       status:           isOnline ? 'online' : 'offline',
       deviceId:         d.serial,
       peaNo:            `M-${String(d.id).padStart(2, '0')}`,
@@ -282,7 +288,6 @@ export function useSiteData() {
       if (!ok(listData.status) || !Array.isArray(listData.msg)) return
 
       // ─── Step 2: สร้าง install lookup (siteid → device info) ──
-      // /site/install อาจมีหลาย device ต่อ site → เก็บตัวแรกของแต่ละ site
       const installLookup = new Map<string, ApiInstallItem>()
       if (ok(installData.status) && Array.isArray(installData.msg)) {
         for (const item of installData.msg) {
@@ -292,7 +297,6 @@ export function useSiteData() {
       }
 
       // ─── Step 3: ดึง lastrecord แยกตาม siteid ที่มีอุปกรณ์ ──
-      // ต้องส่ง ?source=site&siteid=N ให้ถูก ไม่งั้นได้ข้อมูลผิด
       const siteIdsWithDevice = [...installLookup.keys()]
       const lastRecordMap = new Map<string, ApiLastRecord['msg'] | null>()
       await Promise.all(
@@ -308,6 +312,7 @@ export function useSiteData() {
       )
 
       // ─── Step 4: map sites ───────────────────────────────
+      // ✅ field "name" ตรงนี้คือแหล่งข้อมูล site name ที่ถูกต้อง (พิสูจน์แล้วจากหน้า Overview)
       const mappedSites: Site[] = listData.msg.map((apiSite) => {
         const sid      = String(apiSite.id).trim()
         const dev      = installLookup.get(sid)
@@ -335,15 +340,13 @@ export function useSiteData() {
       buildAlerts()
 
       // ─── Step 5: build transformers + realtime ───────────
-      // แต่ละ transformer ใช้ lastrecord ของ site ที่ตัวเองผูกอยู่
       if (ok(deviceData.status) && Array.isArray(deviceData.msg)) {
-        // device → site: match ตาม devid ใน installLookup
-        // สร้าง devid → siteid lookup
         const devToSite = new Map<string, string>()
         for (const [sid, item] of installLookup.entries()) {
           devToSite.set(String(item.devid).trim(), sid)
         }
         buildTransformers(deviceData.msg, lastRecordMap, devToSite, mappedSites)
+        // ✅ ไม่ต้องส่ง installLookup เข้าไปแล้ว เพราะ buildTransformers ใช้ sites (มี name อยู่แล้ว)
       }
 
     } catch (err: any) {
