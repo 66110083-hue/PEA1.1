@@ -39,26 +39,55 @@ const chartXData = computed(() => {
 })
 
 // คำนวณค่า Total Power ล่าสุด สำหรับส่งให้ PhaseCard ใบที่ 4 (Total)
+// ดึงค่า Total Power ล่าสุด โดยให้ลองเอาจาก latest ก่อน ถ้าไม่มีค่อยไปหาใน allData
 const latestTotalPower = computed(() => {
-  if (!allData.value || allData.value.length === 0) return 0
-  const lastItem = allData.value[allData.value.length - 1]
-  if (!lastItem) return 0
-  
-  const val = lastItem.power ?? lastItem.Power ?? lastItem.total ?? lastItem.Total ?? 
-              lastItem.totalPower ?? lastItem.total_power ?? lastItem.active_power ?? 
-              lastItem.p ?? lastItem.P ?? lastItem.kw ?? lastItem.kW ?? 0;
-
-  if (typeof val === 'object' && val !== null) {
-    return val.total ?? val.Total ?? val.value ?? val.val ?? val.sum ?? Object.values(val)[0] ?? 0;
+  // 1. ลองดึงจากตัวแปร latest ที่ระบบคำนวณค่าล่าสุดจริงไว้ให้แล้ว
+  if (latest.value) {
+    const fromLatest = latest.value.total ?? latest.value.power ?? latest.value.Total ?? latest.value.kw ?? latest.value.kW
+    if (fromLatest !== undefined && fromLatest !== null) {
+      if (typeof fromLatest === 'object') {
+        return fromLatest.total ?? fromLatest.value ?? fromLatest.val ?? Object.values(fromLatest)[0] ?? 0
+      }
+      return Number(fromLatest) || 0
+    }
+    
+    // กรณีที่ latest เก็บแยกไว้ในเฟส A (เช่นล่าสุดส่งมาเฉลี่ยเฟสละ 3.17) ให้ลองดึงจากเฟส A มาใช้
+    const phaseAPower = latest.value.A?.power ?? latest.value.A?.kw
+    if (phaseAPower !== undefined && phaseAPower !== null) {
+      return Number(phaseAPower) || 0
+    }
   }
-  return Number(val) || 0;
+
+  // 2. แผนสำรอง: ถ้าใน latest ไม่มี ให้ค้นหาจาก allData โดยหา "รายการล่าสุดที่มีค่าไม่เป็น 0"
+  if (!allData.value || allData.value.length === 0) return 0
+  
+  // วนลูปจากรายการหลังสุดถอยกลับมา หาตัวเลขตัวแรกที่ไม่ใช่ 0
+  for (let i = allData.value.length - 1; i >= 0; i--) {
+    const item = allData.value[i]
+    if (!item) continue
+    
+    const val = item.power ?? item.Power ?? item.total ?? item.Total ?? 
+                item.totalPower ?? item.total_power ?? item.active_power ?? 
+                item.p ?? item.P ?? item.kw ?? item.kW ?? 0;
+
+    let finalVal = 0
+    if (typeof val === 'object' && val !== null) {
+      finalVal = val.total ?? val.Total ?? val.value ?? val.val ?? val.sum ?? Object.values(val)[0] ?? 0;
+    } else {
+      finalVal = Number(val) || 0;
+    }
+
+    // ถ้าเจอรายการล่าสุดที่ค่ามากกว่า 0 ให้ส่งค่านั้นออกไปทันที
+    if (finalVal > 0) return finalVal
+  }
+
+  return 0
 })
 
 // คำนวณความสมดุล 3 เฟสใหม่ โดยบังคับใช้ Current (A) หรือ Voltage (V) เท่านั้น ไม่ใช้ Power
 const balanceData = computed(() => {
   if (!allData.value || allData.value.length === 0) return []
 
-  // ถ้าเลือก Tab "Power" ให้บังคับใช้กระแส (current) ในการคำนวณความสมดุลแทน
   const targetMetric = activeMetric.value === 'power' ? 'current' : activeMetric.value
   
   return PHASES.map((ph: any) => {
@@ -147,7 +176,7 @@ function onMapSelect(id: string) {
   <div class="main-content">
     <template v-if="hasData">
       
-      <!-- 1. กลุ่มการ์ด 3 เฟส (A, B, C) จะแบ่ง 3 คอลัมน์เท่าๆ กันตามเดิม -->
+      <!-- 1. กลุ่มการ์ด 3 เฟส (A, B, C) แบ่ง 3 คอลัมน์เท่าๆ กัน -->
       <div class="phase-grid">
         <PhaseCard
           v-for="ph in PHASES" 
@@ -218,41 +247,71 @@ function onMapSelect(id: string) {
     </div>
 
     <template v-if="hasData">
-       <div class="equal-height-row">
-         <div class="card dashboard-card">
-           <div class="card-inner">
-             <div class="card-title mb-4"><i class="ti ti-calculator text-blue" /> <span>สถิติประมวลผล</span></div>
-             <div class="card-body-content">
-               <div v-for="s in statistics" :key="s.label" class="stats-row-custom" style="display: grid; grid-template-columns: 1fr auto; align-items: start; padding: 10px 0; border-bottom: 1px solid #f3f4f6; min-height: 58px;">
-                 <span class="text-muted" style="font-size: 13px; align-self: center;">{{ s.label }}</span>
-                 <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
-                   <span class="font-mono fw-bold stat-value" :style="{ color: s.color }">{{ s.value }}</span>
-                   <div v-if="s.sub" style="font-size: 10px; color: var(--color-text-3); margin-top: 2px; line-height: 1.2;">{{ s.sub }}</div>
-                 </div>
-               </div>
-             </div>
-           </div>
-         </div>
-         <div class="card dashboard-card">
-           <div class="card-inner">
-             <div class="card-title mb-4">
-               <i class="ti ti-chart-bar text-amber" /> 
-               <span>{{ balanceTitle }}</span>
-             </div>
-             <div class="card-body-content">
-               <div v-for="ph in balanceData" :key="ph.id" class="balance-item" style="margin-bottom: 16px;">
-                 <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                   <span class="text-muted" style="font-size: 13px;">เฟส {{ ph.id }}</span>
-                   <span class="font-mono fw-bold" style="font-size: 14px;">{{ ph.avg.toFixed(1) }} <small class="text-3" style="font-size: 11px;">{{ balanceUnit }}</small></span>
-                 </div>
-                 <div style="background: #f3f4f6; height: 6px; border-radius: 3px; overflow: hidden; width: 100%;">
-                   <div :style="{ width: ph.pct + '%', background: ph.color, height: '100%', borderRadius: '3px', transition: 'width 0.6s' }" />
-                 </div>
-               </div>
-             </div>
-           </div>
-         </div>
-       </div>
+      <!-- ปรับ class แบบไดนามิกเพื่อเปลี่ยนเลย์เอาต์ตามเมนูที่เลือก -->
+      <div :class="activeMetric === 'power' ? 'single-column-row' : 'equal-height-row'">
+        
+      <!-- 1. การ์ดสถิติประมวลผล -->
+        <div class="card dashboard-card">
+          <div class="card-inner">
+            <div class="card-title mb-4">
+              <i class="ti ti-calculator text-blue" /> <span>สถิติประมวลผล</span>
+            </div>
+            
+            <!-- สลับ Container: ถ้าเลือก Power ให้ใช้ Grid 3 ช่องแนวนอน (stats-power-grid) -->
+            <div :class="activeMetric === 'power' ? 'stats-power-grid' : 'card-body-content'">
+              
+              <div 
+                v-for="s in statistics" 
+                :key="s.label" 
+                :class="activeMetric === 'power' ? 'stat-mini-card' : 'stats-row-custom'"
+                :style="activeMetric === 'power' ? {} : { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'start', padding: '10px 0', borderBottom: '1px solid #f3f4f6', minHeight: '58px' }"
+              >
+                <!-- ── โหมด POWER: แสดงเป็นกล่องแนวนอน (ข้อความอยู่บน ตัวเลขใหญ่ด้านล่าง) ── -->
+                <template v-if="activeMetric === 'power'">
+                  <div class="stat-label">{{ s.label }}</div>
+                  <div class="stat-value-box">
+                    <span class="stat-num font-mono fw-bold" :style="{ color: s.color }">{{ s.value }}</span>
+                    <div v-if="s.sub" class="stat-sub">{{ s.sub }}</div>
+                  </div>
+                </template>
+
+                <!-- ── โหมดปกติ (Current/Voltage): แสดงเป็นบรรทัดแนวตั้งตามเดิม ── -->
+                <template v-else>
+                  <span class="text-muted" style="font-size: 13px; align-self: center;">{{ s.label }}</span>
+                  <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                    <span class="font-mono fw-bold stat-value" :style="{ color: s.color }">{{ s.value }}</span>
+                    <div v-if="s.sub" style="font-size: 10px; color: var(--color-text-3); margin-top: 2px; line-height: 1.2;">{{ s.sub }}</div>
+                  </div>
+                </template>
+
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. การ์ดความสมดุล 3 เฟส (จะแสดงเฉพาะตอนที่ไม่ใช่เมนู Power) -->
+        <div v-if="activeMetric !== 'power'" class="card dashboard-card">
+          <div class="card-inner">
+            <div class="card-title mb-4">
+              <i class="ti ti-chart-bar text-amber" /> 
+              <span>{{ balanceTitle }}</span>
+            </div>
+            <div class="card-body-content">
+              <div v-for="ph in balanceData" :key="ph.id" class="balance-item" style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                  <span class="text-muted" style="font-size: 13px;">เฟส {{ ph.id }}</span>
+                  <span class="font-mono fw-bold" style="font-size: 14px;">{{ ph.avg.toFixed(1) }} <small class="text-3" style="font-size: 11px;">{{ balanceUnit }}</small></span>
+                </div>
+                <div style="background: #f3f4f6; height: 6px; border-radius: 3px; overflow: hidden; width: 100%;">
+                  <div :style="{ width: ph.pct + '%', background: ph.color, height: '100%', borderRadius: '3px', transition: 'width 0.6s' }" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </template>
     <ClientOnly>
       <SiteMap :sites="allSites" :selected-site-id="selectedSiteId" @select="onMapSelect" />
@@ -263,4 +322,92 @@ function onMapSelect(id: string) {
 <style scoped>
 .spin-icon { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* เมื่อเหลือการ์ดเดียว ให้ขยายเต็มความกว้าง 100% */
+.single-column-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  margin-top: 16px;
+}
+
+/* ปรับสถิติให้เรียงแนวนอน 3 คอลัมน์ เมื่ออยู่โหมดกว้างเต็มหน้าจอ */
+.stats-grid-horizontal {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.stats-grid-horizontal .stats-row-custom {
+  border-bottom: none !important;
+  border-right: 1px solid #f3f4f6;
+  padding-right: 16px;
+}
+
+.stats-grid-horizontal .stats-row-custom:last-child {
+  border-right: none;
+}
+.stats-power-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* บังคับแบ่งพื้นที่เป็น 3 ช่องเท่าๆ กันเป๊ะ */
+  gap: 16px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* ดีไซน์กล่องย่อยแต่ละช่องให้เป็น Mini-card สวยงาม */
+.stat-mini-card {
+  background-color: #f8fafc; /* สีพื้นหลังเทาอมฟ้าอ่อน ช่วยแบ่งเป็นสัดส่วนชัดเจน */
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 96px;
+  transition: all 0.2s ease;
+}
+
+.stat-mini-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+
+/* จัดฟอนต์หัวข้อด้านบน */
+.stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+/* จัดกลุ่มตัวเลขด้านล่าง */
+.stat-value-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* ขยายตัวเลขให้ใหญ่สะดุดตา */
+.stat-num {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+/* ข้อความวันที่ย่อยด้านล่าง ไม่ให้โดนตัดคำ */
+.stat-sub {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+/* รองรับหน้าจอมือถือหรือแท็บเล็ต ถ้าจอเล็กจะพับกลับมาเรียงซ้อนให้เอง */
+@media (max-width: 768px) {
+  .stats-power-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
