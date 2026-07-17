@@ -1,7 +1,7 @@
 import { ref, computed, watch } from 'vue'
-import { allTransformers, allTransformerRealtime } from '@/composables/useSiteData'
+import { allTransformers } from '@/composables/useSiteData'
 
-export interface ChartPoint { time: string; [key: string]: number | string }
+export interface ChartPoint { time: string; timestamp: Date; [key: string]: number | string | Date }
 export interface Series     { key: string; label: string; color: string; unit: string }
 export interface EChartsDataset {
   name:     string
@@ -10,11 +10,13 @@ export interface EChartsDataset {
   showArea?: boolean
 }
 
+const BASE_URL = 'https://greatways.net'
+
 export const TOPICS = [
-  { value: 'ev',   label: 'Analysis EV'                               },
-  { value: 'pv',   label: 'Analysis PV'                               },
-  { value: 'cu',   label: 'Analysis Transformer (Current-Unbalance)'  },
-  { value: 'loss', label: 'Analysis Transformer (Loss Non-Technical)' },
+  { value: 'ev',   label: 'Total Power (kW)'      },
+  { value: 'pv',   label: 'Phase Current & Power' },
+  { value: 'cu',   label: 'Current Unbalance (%)' },
+  { value: 'loss', label: 'Reactive Power & PF'   },
 ]
 
 export const PERIODS = [
@@ -24,43 +26,75 @@ export const PERIODS = [
   { value: '30d',     label: '30 วัน'  },
 ]
 
+// ─── เฉพาะ field ที่มีข้อมูลจริงจาก /api/measure เท่านั้น ─────────
 export const SERIES_CONFIG: Record<string, Series[]> = {
   ev: [
-    { key: 'importPower', label: 'Transformer: Total Flow Power (kW)',       color: '#E24B4A', unit: 'kW'  },
-    { key: 'exportPower', label: 'Transformer: Balance Power (kW)',          color: '#3B82F6', unit: 'kW'  },
-    { key: 'meterImport', label: 'Meter(s): Total Applicable Power (kW)',    color: '#10B981', unit: 'kW'  },
-    { key: 'evLoad',      label: 'EV: Applicable Input Power (kW)',          color: '#F59E0B', unit: 'kW'  },
-    { key: 'evEnergy',    label: 'EV: Electrical Consumption / Input (kWh)', color: '#8B5CF6', unit: 'kWh' },
+    { key: 'totalPower', label: 'Total Active Power (kW)', color: '#E24B4A', unit: 'kW' },
   ],
   pv: [
-    { key: 'pvExportA', label: 'Current Phase A (A)',     color: '#E24B4A', unit: 'A'  },
-    { key: 'pvExportB', label: 'Current Phase B (A)',     color: '#3B82F6', unit: 'A'  },
-    { key: 'pvExportC', label: 'Current Phase C (A)',     color: '#10B981', unit: 'A'  },
-    { key: 'pvTotal',   label: 'Total Export Power (kW)', color: '#F59E0B', unit: 'kW' },
-    { key: 'pvBalance', label: 'Balance Power (kW)',      color: '#8B5CF6', unit: 'kW' },
+    { key: 'currentA',   label: 'Current Phase A (A)',     color: '#E24B4A', unit: 'A'  },
+    { key: 'currentB',   label: 'Current Phase B (A)',     color: '#3B82F6', unit: 'A'  },
+    { key: 'currentC',   label: 'Current Phase C (A)',     color: '#10B981', unit: 'A'  },
+    { key: 'totalPower', label: 'Total Active Power (kW)', color: '#F59E0B', unit: 'kW' },
   ],
   cu: [
     { key: 'currentA', label: 'Current Phase A (A)',    color: '#E24B4A', unit: 'A' },
     { key: 'currentB', label: 'Current Phase B (A)',    color: '#3B82F6', unit: 'A' },
     { key: 'currentC', label: 'Current Phase C (A)',    color: '#10B981', unit: 'A' },
-    { key: 'negSeq',   label: 'Negative Sequence (%)', color: '#F59E0B', unit: '%' },
+    { key: 'negSeq',   label: 'Current Unbalance (%)',  color: '#F59E0B', unit: '%' },
   ],
   loss: [
-    { key: 'importEnergy', label: 'Non-Technical Loss (kWh)', color: '#F59E0B', unit: 'kWh' },
+    { key: 'reactivePower', label: 'Reactive Power (kVAR)', color: '#3B82F6', unit: 'kVAR' },
+    { key: 'apparentPower', label: 'Apparent Power (kVA)',  color: '#8B5CF6', unit: 'kVA'  },
+    { key: 'powerFactor',   label: 'Power Factor',          color: '#F59E0B', unit: ''     },
   ],
+}
+
+// ─── helpers ──────────────────────────────────────────────
+function toApiDateFormat(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-')
+  return `${+d}/${+m}/${y}`
+}
+
+function toNum(v: unknown): number {
+  if (v === null || v === undefined) return 0
+  const s = String(v).trim().toLowerCase()
+  if (s === 'nan' || s === '') return 0
+  const n = parseFloat(s)
+  return Number.isFinite(n) ? n : 0
+}
+
+function parseApiTimestamp(ts: string): Date {
+  return new Date(ts.replace(' ', 'T'))
+}
+
+function calcCurrentUnbalance(a: number, b: number, c: number): number {
+  const avg = (a + b + c) / 3
+  if (avg <= 0) return 0
+  const maxDev = Math.max(Math.abs(a - avg), Math.abs(b - avg), Math.abs(c - avg))
+  return +((maxDev / avg) * 100).toFixed(2)
+}
+
+function resolveSiteId(transformerId: string): string | null {
+  const cleanId = transformerId.replace(/^TF-/i, '').trim()
+  const transformer = allTransformers.find((t: any) =>
+    t.id === cleanId || t.id === transformerId || String(t.id) === cleanId
+  )
+  return (transformer as any)?.siteId ?? null
 }
 
 export function useAnalysisChart() {
 
   const selectedTopic       = ref('ev')
-  const selectedTransformer = ref(allTransformers.length ? allTransformers[0].id : '')
+  const selectedTransformer = ref('')
   const selectedPeriod      = ref('current')
   const isLoading           = ref(false)
   const hasGenerated        = ref(false)
   const chartData           = ref<ChartPoint[]>([])
+  const fetchError          = ref<string | null>(null)
 
   const transformerOptions = computed(() =>
-    allTransformers.map(t => ({ value: t.id, label: `${t.id} — ${t.location}` }))
+    allTransformers.map((t: any) => ({ value: t.id, label: `${t.id} — ${t.location}` }))
   )
 
   const currentSeries = computed<Series[]>(
@@ -89,54 +123,90 @@ export function useAnalysisChart() {
     chartData.value    = []
   })
 
-  function generateTimeSeries(): ChartPoint[] {
-    const rt = allTransformerRealtime.find(r => r.transformerId === selectedTransformer.value)
-    if (!rt) return []
-    const n = () => 0.82 + Math.random() * 0.36
+  async function fetchRealData(
+    siteId: string,
+    startDate: string,
+    endDate:   string,
+  ): Promise<ChartPoint[]> {
+    const params = new URLSearchParams({
+      source: 'site',
+      siteid: String(siteId),
+      start:  toApiDateFormat(startDate),
+      end:    toApiDateFormat(endDate),
+    })
 
-    return Array.from({ length: 48 }, (_, i) => {
-      const h = Math.floor(i / 2).toString().padStart(2, '0')
-      const m = i % 2 === 0 ? '00' : '30'
-      const p: ChartPoint = { time: `${h}:${m}` }
+    const res  = await fetch(`${BASE_URL}/api/measure?${params.toString()}`)
+    const json = await res.json()
 
-      switch (selectedTopic.value) {
-        case 'ev':
-          p.importPower = +(rt.totalActivePowerImport  * n()).toFixed(2)
-          p.exportPower = +(rt.totalActivePowerExport  * n()).toFixed(2)
-          p.meterImport = +(rt.totalActivePowerImport  * 0.9 * n()).toFixed(2)
-          p.evLoad      = +(rt.totalActivePowerImport  * 0.3 * n()).toFixed(2)
-          p.evEnergy    = +(rt.importActiveEnergy      * 0.01 * n()).toFixed(2)
-          break
-        case 'pv':
-          p.pvExportA   = +(rt.activePowerExportA      * n()).toFixed(2)
-          p.pvExportB   = +(rt.activePowerExportB      * n()).toFixed(2)
-          p.pvExportC   = +(rt.activePowerExportC      * n()).toFixed(2)
-          p.pvTotal     = +(rt.totalActivePowerExport  * n()).toFixed(2)
-          p.pvBalance   = +(rt.totalActivePowerImport  * 0.2 * n()).toFixed(2)
-          break
-        case 'cu':
-          p.currentA    = +(rt.currentA                        * n()).toFixed(2)
-          p.currentB    = +(rt.currentB                        * n()).toFixed(2)
-          p.currentC    = +(rt.currentC                        * n()).toFixed(2)
-          p.negSeq      = +(rt.negativeSequenceCurrentRatio    * n() * 10).toFixed(3)
-          break
-        case 'loss':
-          p.importEnergy = +(rt.importActiveEnergy * 0.005 * n()).toFixed(2)
-          break
+    if (!['success', 'susscess'].includes(json.status) || !Array.isArray(json.msg)) {
+      return []
+    }
+
+    const columns: Record<string, string[]> = {}
+    for (const col of json.msg) {
+      columns[col.label] = col.data
+    }
+
+    const timestamps = columns['timestamp'] ?? []
+    const multiDay    = startDate !== endDate
+
+    return timestamps.map((ts, i) => {
+      const t = parseApiTimestamp(ts)
+
+      const iA = toNum(columns['I_A']?.[i])
+      const iB = toNum(columns['I_B']?.[i])
+      const iC = toNum(columns['I_C']?.[i])
+
+      const pTotal = toNum(columns['P_Total']?.[i])
+
+      const hh = String(t.getHours()).padStart(2, '0')
+      const mm = String(t.getMinutes()).padStart(2, '0')
+      const dd = String(t.getDate()).padStart(2, '0')
+      const mo = String(t.getMonth() + 1).padStart(2, '0')
+
+      return {
+        time:      multiDay ? `${dd}/${mo} ${hh}:${mm}` : `${hh}:${mm}`,
+        timestamp: t,
+        currentA:  iA,
+        currentB:  iB,
+        currentC:  iC,
+        totalPower:    pTotal,
+        negSeq:        calcCurrentUnbalance(iA, iB, iC),
+        reactivePower: toNum(columns['Q_Total']?.[i]),
+        apparentPower: toNum(columns['S_Total']?.[i]),
+        powerFactor:   toNum(columns['PF']?.[i]),
       }
-      return p
     })
   }
 
-  // รับ payload { startDate, endDate } จาก FilterCard
   async function handleGenerate(payload: { startDate: string; endDate: string }) {
     if (!selectedTransformer.value) return
+
     isLoading.value    = true
     hasGenerated.value = false
-    await new Promise(r => setTimeout(r, 500))
-    chartData.value    = generateTimeSeries()
-    hasGenerated.value = true
-    isLoading.value    = false
+    fetchError.value   = null
+
+    const siteId = resolveSiteId(selectedTransformer.value)
+
+    if (!siteId) {
+      console.warn('[useAnalysisChart] ไม่พบ siteId สำหรับ transformer', selectedTransformer.value)
+      fetchError.value = 'ไม่พบข้อมูล site สำหรับหม้อแปลงนี้'
+      chartData.value  = []
+      isLoading.value  = false
+      hasGenerated.value = true
+      return
+    }
+
+    try {
+      chartData.value = await fetchRealData(siteId, payload.startDate, payload.endDate)
+    } catch (e) {
+      console.error('[useAnalysisChart] fetchRealData failed', e)
+      fetchError.value = 'ดึงข้อมูลไม่สำเร็จ'
+      chartData.value  = []
+    } finally {
+      hasGenerated.value = true
+      isLoading.value    = false
+    }
   }
 
   function handleExport() {
@@ -158,7 +228,7 @@ export function useAnalysisChart() {
 
   return {
     selectedTopic, selectedTransformer, selectedPeriod,
-    isLoading, hasGenerated, chartData,
+    isLoading, hasGenerated, chartData, fetchError,
     transformerOptions, currentSeries, selectedTopicLabel,
     chartLabels, echartsDatasets,
     handleGenerate, handleExport,
