@@ -7,18 +7,18 @@
       {{ error }}
     </div>
     
-    <div id="map" class="site-map"></div>
+    <!-- 1. เปลี่ยนจาก id="map" เป็นการใช้ ref="mapElement" ของ Vue แทน -->
+    <div ref="mapElement" class="site-map"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch, onBeforeUnmount } from 'vue'
-// เปลี่ยน Path ด้านล่างนี้ให้ตรงกับโฟลเดอร์ที่คุณเก็บไฟล์ useSiteData.ts
+import { onMounted, watch, onBeforeUnmount, ref, nextTick } from 'vue'
 import { useSiteData } from '@/composables/useSiteData' 
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// ไอคอนเริ่มต้นของ Leaflet (แก้ปัญหาไอคอนหมุดไม่ขึ้นใน Vite/Webpack)
+// ไอคอนเริ่มต้นของ Leaflet
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
 import iconUrl from 'leaflet/dist/images/marker-icon.png'
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
@@ -31,35 +31,46 @@ L.Icon.Default.mergeOptions({
 
 const { allSites, isLoading, error, fetchSites } = useSiteData()
 
+// 2. สร้าง Ref สำหรับจับกล่อง HTML ของแผนที่โดยเฉพาะ (ไม่ตีกันเวลาเปลี่ยนหน้า)
+const mapElement = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
 const markerGroup = L.layerGroup()
+let resizeObserver: ResizeObserver | null = null
 
 function initMap() {
-  // สร้างแผนที่ (เซ็ตจุดศูนย์กลางตั้งต้นไว้ที่ กทม.)
-  map = L.map('map', {
+  if (!mapElement.value) return
+
+  // สร้างแผนที่โดยส่งตัวแปร DOM Element เข้าไปแทน string ID
+  map = L.map(mapElement.value, {
     center: [13.8508, 100.5581],
     zoom: 11
   })
 
-  // โหลดภาพแผนที่จาก OpenStreetMap
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(map)
 
   markerGroup.addTo(map)
+
+  // 3. ไม้ตาย: ใช้ ResizeObserver เพื่อคอยมองว่าถ้ากล่องแผนที่ขยายตัว/เปลี่ยนขนาด
+  // ให้บังคับ Leaflet คำนวณภาพกราฟิกใหม่ทันที (แก้ปัญหาจอขาว 100%)
+  resizeObserver = new ResizeObserver(() => {
+    if (map) {
+      map.invalidateSize()
+    }
+  })
+  resizeObserver.observe(mapElement.value)
 }
 
 function updateMapMarkers() {
   if (!map) return
 
-  markerGroup.clearLayers() // ล้างหมุดเก่า
+  markerGroup.clearLayers()
   const activeMarkers: L.Marker[] = []
 
   allSites.value.forEach((site) => {
-    // กรองพิกัดที่ไม่ถูกต้องออก
     if (isNaN(site.lat) || isNaN(site.lng) || (site.lat === 0 && site.lng === 0)) return 
 
-    // สร้างหมุดและ Popup
     const marker = L.marker([site.lat, site.lng])
       .bindPopup(`
         <div class="popup-content">
@@ -74,7 +85,6 @@ function updateMapMarkers() {
     activeMarkers.push(marker)
   })
 
-  // ปรับ Zoom อัตโนมัติให้เห็นหมุดทุกตัวในหน้าจอ
   if (activeMarkers.length > 0) {
     const featureGroup = L.featureGroup(activeMarkers)
     map.fitBounds(featureGroup.getBounds().pad(0.1))
@@ -82,19 +92,34 @@ function updateMapMarkers() {
 }
 
 onMounted(async () => {
+  // รอให้ Vue เรนเดอร์โครงสร้าง HTML ให้เสร็จสิ้นสมบูรณ์ก่อน 1 จังหวะ
+  await nextTick()
+  
   initMap()
   await fetchSites()
   updateMapMarkers()
+
+  // 4. ตั้งหน่วงเวลา 400ms (รอจนแอนิเมชัน Transition เปลี่ยนหน้าของ app.vue เล่นจบ)
+  // แล้วสั่งให้ Leaflet วาดกระเบื้องแผนที่ใหม่อีกรอบ
+  setTimeout(() => {
+    if (map) {
+      map.invalidateSize()
+    }
+  }, 400)
 })
 
-// หากข้อมูลมีการเปลี่ยนแปลงจากที่อื่น ให้แผนที่อัปเดตตาม
 watch(allSites, () => {
   updateMapMarkers()
 }, { deep: true })
 
 onBeforeUnmount(() => {
+  // ยกเลิกการ observe และทำลายแผนที่ทิ้งอย่างสะอาดหมดจดเมื่อย้ายไปหน้าอื่น
+  if (resizeObserver && mapElement.value) {
+    resizeObserver.unobserve(mapElement.value)
+  }
   if (map) {
     map.remove()
+    map = null
   }
 })
 </script>
@@ -112,7 +137,7 @@ onBeforeUnmount(() => {
   width: 100%;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 1; /* ป้องกันไม่ให้แผนที่ทับ Navbar หรือ Modal ของหน้าเว็บ */
+  z-index: 1;
 }
 
 .loading-overlay {
@@ -134,7 +159,6 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-/* สไตล์กล่อง Popup บนแผนที่ */
 :deep(.popup-content) {
   font-family: inherit;
   line-height: 1.6;
