@@ -183,19 +183,18 @@ function backToList() {
           <table class="tm-table">
             <thead>
               <tr>
-                <th>Status</th><th>Dev Serial</th><th>Dev ID</th><th>Site ID</th><th>Site Name</th><th>Brand</th>
+                <th>Status</th><th>Dev Serial</th><th>Site ID</th><th>Site Name</th><th>Brand</th>
                 <th>Rated</th><th>Rated CT</th><th>Comm. Type</th><th>IP Sim</th>
                 <th>Lat</th><th>Long</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="filteredData.length === 0">
-                <td colspan="13" style="text-align:center;padding:32px;color:var(--color-text-3)">ไม่พบข้อมูล</td>
+                <td colspan="12" style="text-align:center;padding:32px;color:var(--color-text-3)">ไม่พบข้อมูล</td>
               </tr>
               <tr v-for="row in filteredData" :key="row.id">
                 <td><span class="status-dot" :class="row.status"/></td>
                 <td class="tm-mono">{{ row.deviceId }}</td>
-                <td class="tm-mono tm-bold">{{ row.peaNo }}</td>
                 <td class="tm-mono">{{ row.siteId }}</td>
                 <td>{{ row.siteName }}</td>
                 <td>{{ row.brand }}</td>
