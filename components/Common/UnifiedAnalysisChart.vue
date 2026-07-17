@@ -13,42 +13,35 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-// นิยาม Props เพื่อให้หน้าอื่นเรียกใช้งานและปรับแต่งได้ยืดหยุ่น
 const props = defineProps<{
-  xAxisData: string[] // ตัวแปรเวลา เช่น ['00:00', '01:00', ...]
+  xAxisData: string[]
   datasets: {
     name: string
     data: number[]
     color?: string
-    showArea?: boolean // สั่งเปิด/ปิด แรเงาใต้กราฟ
   }[]
-  showZoom?: boolean   // 🔥 สั่งเปิด/ปิด แถบสไลด์ซูมด้านล่างแบบรูปที่ 2
-  showSmooth?: boolean // สั่งให้เส้นโค้งมนสมูทหรือไม่
+  showZoom?: boolean
+  showSmooth?: boolean
 }>()
 
-// แปลงข้อมูลจาก Props ให้อยู่ในรูปโครงสร้าง Option ของ ECharts
 const chartOption = computed(() => {
-  // 1. แปลงข้อมูล Series
   const seriesConfig = props.datasets.map(set => ({
     name: set.name,
     type: 'line',
     data: set.data,
     smooth: props.showSmooth ?? true,
-    symbol: 'none', // ปิดจุดตุ่มวงกลมบนเส้นเพื่อความสะอาดตา
+    symbol: 'none',
     lineStyle: {
-      width: 1.2,
+      width: 1.5,
       color: set.color
     },
     itemStyle: {
       color: set.color
     },
-    // ถ้าตั้งค่า showArea ให้ทำแรเงาไล่เฉดสีใต้กราฟแบบพรีเมียม
-    areaStyle: set.showArea ? {
-      opacity: 0.1
-    } : undefined
+    // ลบ areaStyle ออกถาวรเพื่อให้ไม่มีแรงเงา
+    areaStyle: undefined
   }))
 
-  // 2. โครงสร้างการตั้งค่าหลักของ ECharts
   return {
     tooltip: {
       trigger: 'axis',
@@ -65,7 +58,7 @@ const chartOption = computed(() => {
     grid: {
       left: '4%',
       right: '4%',
-      bottom: props.showZoom ? '15%' : '8%', // ปรับระยะเผื่อแถบซูม
+      bottom: props.showZoom ? '15%' : '8%',
       top: '12%',
       containLabel: true
     },
@@ -82,11 +75,9 @@ const chartOption = computed(() => {
       axisLabel: { color: '#9ca3af', fontSize: 11 }
     },
     series: seriesConfig,
-
-    // 🔥 ฟีเจอร์เด็ด: แถบเลื่อนซูมดูช่วงเวลาแบบ Real-time
     dataZoom: props.showZoom ? [
       {
-        type: 'slider', // มีแถบสไลเดอร์ให้ดึงด้านล่าง
+        type: 'slider',
         start: 0,
         end: 100,
         height: 20,
@@ -98,9 +89,7 @@ const chartOption = computed(() => {
         handleSize: '120%',
         textStyle: { color: '#9ca3af' }
       },
-      {
-        type: 'inside' // สามารถใช้เมาส์สกรอลหรือใช้สองนิ้วถ่างซูมบนตัวกราฟตรงๆ ได้ด้วย
-      }
+      { type: 'inside' }
     ] : []
   }
 })
@@ -109,7 +98,7 @@ const chartOption = computed(() => {
 <style scoped>
 .chart-wrapper {
   width: 100%;
-  height: 320px; /* สามารถปรับความสูงตามบริบทหน้าจอได้เลยครับ */
+  height: 320px;
 }
 .echart-instance {
   width: 100%;
