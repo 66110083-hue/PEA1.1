@@ -133,7 +133,6 @@ export const allTransformerRealtime = reactive<TransformerRealtime[]>([])
 
 function isRecentUpdate(update: string, thresholdMinutes = 15): boolean {
   if (!update) return false
-  // format: "11/06/2026 14:11"
   const [datePart, timePart] = update.split(' ')
   if (!datePart || !timePart) return false
   const [dd, mm, yyyy] = datePart.split('/')
@@ -175,7 +174,7 @@ function buildAlerts() {
 function buildTransformers(
   devices:       ApiDevice[],
   lastRecordMap: Map<string, ApiLastRecord['msg'] | null>,
-  devToSite:     Map<string, string>,   // devid → siteid
+  devToSite:     Map<string, string>,
   sites:         Site[],
 ) {
   const siteLookup = new Map<string, Site>(sites.map(s => [s.id, s]))
@@ -186,9 +185,6 @@ function buildTransformers(
     const site   = siteLookup.get(siteId) ?? null
     const lr     = lastRecordMap.get(siteId) ?? null
     const isOnline = lr ? isRecentUpdate(lr.update) : false
-
-    // ✅ แก้: ใช้ site?.name ที่พิสูจน์แล้วว่าถูกต้อง (มาจาก /api/site/list โดยตรง)
-    //    แทนการเดา field "sitename" จาก /api/site/install ซึ่งไม่ชัวร์ว่ามีจริง
     const siteName = site?.name ?? '-'
 
     return {
@@ -197,8 +193,8 @@ function buildTransformers(
       siteName,
       status:           isOnline ? 'online' : 'offline',
       deviceId:         d.serial,
-      peaNo:            `M-${String(d.id).padStart(2, '0')}`,
-      brand:            'Unknown',        // รอ backend เพิ่ม field
+      peaNo:            devId,
+      brand:            'Unknown',
       rated:            160,
       ratedCT:          250,
       commType:         TYPE_MAP[d.type] ?? d.type,
@@ -217,7 +213,6 @@ function buildTransformers(
   })
   allTransformers.splice(0, allTransformers.length, ...transformers)
 
-  // ─── build realtime: แต่ละ transformer ใช้ lastrecord ของ site ตัวเอง ✅
   const realtime: TransformerRealtime[] = transformers.map(t => {
     const lrMsg     = lastRecordMap.get(t.siteId) ?? null
     const lrData    = lrMsg?.data ?? null
@@ -276,7 +271,6 @@ export function useSiteData() {
     try {
       const ok = (s: string) => ['success', 'susscess'].includes(s?.toLowerCase())
 
-      // ─── Step 1: ยิง 3 API พร้อมกัน ─────────────────────
       const [listRes, installRes, deviceRes] = await Promise.all([
         fetch(`${BASE_URL}/api/site/list`),
         fetch(`${BASE_URL}/api/site/install`),
@@ -287,7 +281,6 @@ export function useSiteData() {
 
       if (!ok(listData.status) || !Array.isArray(listData.msg)) return
 
-      // ─── Step 2: สร้าง install lookup (siteid → device info) ──
       const installLookup = new Map<string, ApiInstallItem>()
       if (ok(installData.status) && Array.isArray(installData.msg)) {
         for (const item of installData.msg) {
@@ -296,7 +289,6 @@ export function useSiteData() {
         }
       }
 
-      // ─── Step 3: ดึง lastrecord แยกตาม siteid ที่มีอุปกรณ์ ──
       const siteIdsWithDevice = [...installLookup.keys()]
       const lastRecordMap = new Map<string, ApiLastRecord['msg'] | null>()
       await Promise.all(
@@ -311,8 +303,6 @@ export function useSiteData() {
         })
       )
 
-      // ─── Step 4: map sites ───────────────────────────────
-      // ✅ field "name" ตรงนี้คือแหล่งข้อมูล site name ที่ถูกต้อง (พิสูจน์แล้วจากหน้า Overview)
       const mappedSites: Site[] = listData.msg.map((apiSite) => {
         const sid      = String(apiSite.id).trim()
         const dev      = installLookup.get(sid)
@@ -339,14 +329,12 @@ export function useSiteData() {
       allSites.splice(0, allSites.length, ...mappedSites)
       buildAlerts()
 
-      // ─── Step 5: build transformers + realtime ───────────
       if (ok(deviceData.status) && Array.isArray(deviceData.msg)) {
         const devToSite = new Map<string, string>()
         for (const [sid, item] of installLookup.entries()) {
           devToSite.set(String(item.devid).trim(), sid)
         }
         buildTransformers(deviceData.msg, lastRecordMap, devToSite, mappedSites)
-        // ✅ ไม่ต้องส่ง installLookup เข้าไปแล้ว เพราะ buildTransformers ใช้ sites (มี name อยู่แล้ว)
       }
 
     } catch (err: any) {

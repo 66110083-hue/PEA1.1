@@ -18,7 +18,6 @@ const {
 
 onMounted(() => loadFromAPI())
 
-// ─── Restore Dropdown ─────────────────────────────────────
 const showRestoreMenu = ref(false)
 function toggleRestoreMenu() { showRestoreMenu.value = !showRestoreMenu.value }
 function handleRestore(id: string) {
@@ -26,7 +25,6 @@ function handleRestore(id: string) {
   if (hiddenList.value.length === 0) showRestoreMenu.value = false
 }
 
-// ─── Detail View ──────────────────────────────────────────
 const showDetail          = ref(false)
 const selectedTransformer = ref<typeof transformers.value[0] | null>(null)
 
@@ -93,7 +91,6 @@ function backToList() {
 .td-breadcrumb .sep    { color:var(--color-border-md); }
 .td-breadcrumb .active { color:var(--color-text-1); font-weight:600; }
 
-/* Restore dropdown */
 .restore-wrap { position:relative; }
 .restore-badge {
   background:#e74c3c; color:white; border-radius:999px;
@@ -123,7 +120,6 @@ function backToList() {
 <template>
   <div style="display:flex;flex-direction:column;gap:16px">
 
-    <!-- ═══ DETAIL VIEW ═══════════════════════════════════ -->
     <template v-if="showDetail && selectedTransformer">
 
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -141,7 +137,6 @@ function backToList() {
 
     </template>
 
-    <!-- ═══ LIST VIEW ══════════════════════════════════════ -->
     <template v-else>
 
       <CardWrapper title="Transformer Management" icon="ti-bolt">
@@ -159,7 +154,6 @@ function backToList() {
               <option value="offline">Offline</option>
             </select>
 
-            <!-- Restore -->
             <div class="restore-wrap">
               <button class="tm-btn tm-btn-outline" @click="toggleRestoreMenu">
                 <i class="ti ti-history"/> Restore
@@ -189,19 +183,20 @@ function backToList() {
           <table class="tm-table">
             <thead>
               <tr>
-                <th>Status</th><th>Device ID</th><th>PEA No.</th><th>Site Name</th><th>Brand</th>
+                <th>Status</th><th>Dev Serial</th><th>Dev ID</th><th>Site ID</th><th>Site Name</th><th>Brand</th>
                 <th>Rated</th><th>Rated CT</th><th>Comm. Type</th><th>IP Sim</th>
                 <th>Lat</th><th>Long</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="filteredData.length === 0">
-                <td colspan="12" style="text-align:center;padding:32px;color:var(--color-text-3)">ไม่พบข้อมูล</td>
+                <td colspan="13" style="text-align:center;padding:32px;color:var(--color-text-3)">ไม่พบข้อมูล</td>
               </tr>
               <tr v-for="row in filteredData" :key="row.id">
                 <td><span class="status-dot" :class="row.status"/></td>
                 <td class="tm-mono">{{ row.deviceId }}</td>
                 <td class="tm-mono tm-bold">{{ row.peaNo }}</td>
+                <td class="tm-mono">{{ row.siteId }}</td>
                 <td>{{ row.siteName }}</td>
                 <td>{{ row.brand }}</td>
                 <td class="tm-mono">{{ row.rated }}</td>
@@ -234,7 +229,6 @@ function backToList() {
 
     </template>
 
-    <!-- MODAL -->
     <TransformerFormModal
       :show="showModal" :mode="modalMode" :form="form" :error="formError"
       @close="closeModal" @save="saveForm" @delete="deleteRow"

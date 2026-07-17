@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 import { useDashboard } from '~/composables/useDashboard'
 import { useTransformer, type Transformer } from '~/composables/useTransformer'
 import TransformerRealtimeTable from '~/components/PageTransformer/TransformerRealtimeTable.vue'
+import EnergyFilter from '~/components/PageOverview/EnergyFilter.vue'
 // ── Props ────────────────────────────────────────────────
 const props = defineProps<{
   transformerId: string   // รับค่าคีย์สลักเชื่อมเข้ามา (เช่น 'M-01', 'TF-M-01' หรือก้อน Object)
@@ -220,12 +221,13 @@ const gauges = computed(() => {
         </div>
         <div class="td-card-body">
 
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button
-              class="td-tab"
-              :class="{ active: !hasData }"
-              @click="handleFilter({ range: '1d' }, targetDashboardId)"
-            ><i class="ti ti-refresh" style="font-size:11px"/> โหลดข้อมูล</button>
+          <div style="margin-bottom:12px">
+            <EnergyFilter
+              :loading="isLoading"
+              :init-site-id="tfInfo?.siteId || ''"
+              :hide-site-selector="true"
+              @apply="handleFilter"
+            />
           </div>
 
           <div class="td-chart-wrap">

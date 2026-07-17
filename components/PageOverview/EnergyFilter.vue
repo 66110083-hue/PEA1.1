@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
 
 const props = defineProps<{
   loading?: boolean
   initSiteId?: string
+  hideSiteSelector?: boolean   // ✅ เพิ่ม: ซ่อน dropdown เมื่อ site ถูกกำหนดตายตัวแล้ว (เช่นหน้า Transformer Detail)
 }>()
 
 const emit = defineEmits(['apply', 'update:location'])
@@ -13,16 +14,19 @@ const { allSites } = useSiteData()
 
 const selectedSiteId = ref(props.initSiteId || '')
 
-// เก็บเป็น Date object สำหรับ VDatePicker
 const startDate = ref(new Date())
 const endDate   = ref(new Date())
 
-// แปลง Date → YYYY-MM-DD สำหรับ emit
 const toISO = (d: Date) => d.toISOString().split('T')[0]
 
 watch(() => props.initSiteId, (val) => { selectedSiteId.value = val || '' })
 
-// 🟢 ฟังก์ชันนี้จะทำงานก็ต่อเมื่อ "คน" กดคลิกเปลี่ยน Dropdown เท่านั้น
+// ✅ ชื่อ site ที่จะโชว์แบบ read-only ตอนซ่อน dropdown
+const lockedSiteName = computed(() => {
+  const s = allSites.find(s => s.id === selectedSiteId.value)
+  return s ? `[${s.id}] ${s.name}` : selectedSiteId.value || '-'
+})
+
 const onSelectChange = () => {
   emit('update:location', {
     siteId: selectedSiteId.value
@@ -41,10 +45,9 @@ const handleApply = () => {
   })
 }
 
-// config ภาษาไทย
 const calendarLocale = {
   id: 'th',
-  firstDayOfWeek: 2, // วันจันทร์เป็นวันแรก
+  firstDayOfWeek: 2,
   masks: { input: 'DD/MM/YYYY' },
 }
 </script>
@@ -53,7 +56,8 @@ const calendarLocale = {
   <div class="filter-container">
     <div class="filter-group">
 
-      <div class="select-wrapper">
+      <!-- ✅ โหมดปกติ: dropdown เลือก site ได้ -->
+      <div v-if="!hideSiteSelector" class="select-wrapper">
         <label>จุดติดตั้ง</label>
         <select v-model="selectedSiteId" class="form-select-sm" @change="onSelectChange">
           <option value="">-- เลือกจุดติดตั้ง --</option>
@@ -61,6 +65,12 @@ const calendarLocale = {
             [{{ s.id }}] {{ s.name }}
           </option>
         </select>
+      </div>
+
+      <!-- ✅ โหมดล็อก: แสดงชื่อ site แบบ read-only แทน dropdown -->
+      <div v-else class="select-wrapper">
+        <label>จุดติดตั้ง</label>
+        <div class="locked-site-badge">{{ lockedSiteName }}</div>
       </div>
 
       <div class="select-wrapper">
@@ -134,6 +144,17 @@ const calendarLocale = {
   font-size: 13px;
   background-color: var(--color-surface-2);
   min-width: 140px;
+}
+/* ✅ badge สำหรับโหมดล็อก site */
+.locked-site-badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+  font-size: 13px;
+  min-width: 140px;
+  color: var(--color-text-2);
+  font-weight: 500;
 }
 .date-input-wrapper {
   display: flex;
