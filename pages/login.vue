@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router' // 1. เพิ่มตัวช่วยจัดการ URL ของ Nuxt
 
 const username = ref('')
 const password = ref('')
+const router = useRouter() // 2. เรียกใช้งาน Router
 
-const emit = defineEmits(['login-success'])
+// กำหนดให้หน้า Login ไม่ต้องมี Sidebar ของระบบมาเกะกะ
+definePageMeta({
+  layout: 'blank'
+})
 
 const submitLogin = () => {
   if (username.value === 'admin' && password.value === '1234') {
-    emit('login-success')
+    // 3. บันทึกสถานะว่าล็อกอินผ่านแล้ว
+    localStorage.setItem('isLoggedIn', 'true')
+    
+    // 4. สั่งให้เบราว์เซอร์เปลี่ยนหน้าไปที่ /overview ทันที!
+    router.push('/overview')
   } else {
     alert('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง')
   }
@@ -43,7 +52,7 @@ const submitLogin = () => {
 
 <style scoped>
 /* ==========================================================================
-   จุดแก้ไขหลัก: ใช้ fixed เพื่อตัดขาดจากระบบ layout ของหน้าอื่นที่พังอยู่
+   จุดแก้ไขหลัก: ใช้ fixed เพื่อตัดขาดจากระบบ layout ของหน้าอื่น
    ========================================================================== */
 .fixed-login-overlay {
   position: fixed;
@@ -51,23 +60,22 @@ const submitLogin = () => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: #f4f6f9; /* สีพื้นหลัง */
+  background: #f4f6f9;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-  z-index: 99999; /* เด้งมาอยู่ชั้นบนสุด */
+  z-index: 99999;
   box-sizing: border-box;
 }
 
-/* กล่องขาวล็อกขนาดให้เป็นกล่อง ไม่ให้ขยายตัวยืดเต็มจอ */
 .login-card {
   background: #ffffff;
   padding: 2.5rem;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   width: 100%;
-  max-width: 420px; /* ล็อกความกว้างไว้เท่านี้เสมอ */
-  height: auto;     /* ปล่อยความสูงให้พอดีกับเนื้อหา ไม่ยืดเต็มจอ */
+  max-width: 420px;
+  height: auto;
   text-align: center;
   box-sizing: border-box;
 }
