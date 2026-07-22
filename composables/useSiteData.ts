@@ -1,8 +1,6 @@
 // 📂 composables/useSiteData.ts
 import { reactive, ref } from 'vue'
 
-const BASE_URL = 'https://greatways.net'
-
 // ─── 1. INTERFACES ─────────────────────────────────────────
 
 export type SiteStatus = 'online' | 'alert' | 'offline'
@@ -37,49 +35,49 @@ export interface Alert {
 export type TransformerStatus = 'online' | 'offline'
 
 export interface Transformer {
-  id:               string
-  siteId:           string
-  siteName:         string
-  status:           TransformerStatus
-  deviceId:         string
-  peaNo:            string
-  brand:            string
-  rated:            number
-  ratedCT:          number
-  commType:         string
-  ipSim:            string
-  lat:              number
-  long:             number
-  location:         string
-  meter1Phase:      number
-  meter3Phase:      number
-  total:            number
-  installDate:      string
-  maxLoad:          number
-  maxFundAI:        number
-  maxFundAIPercent: number
+  id:                 string
+  siteId:             string
+  siteName:           string
+  status:             TransformerStatus
+  deviceId:           string
+  peaNo:              string
+  brand:              string
+  rated:              number
+  ratedCT:            number
+  commType:           string
+  ipSim:              string
+  lat:                number
+  long:               number
+  location:           string
+  meter1Phase:        number
+  meter3Phase:        number
+  total:              number
+  installDate:        string
+  maxLoad:            number
+  maxFundAI:          number
+  maxFundAIPercent:   number
 }
 
 export interface TransformerRealtime {
-  transformerId:                    string
-  voltageA:                         number; voltageB: number; voltageC: number
-  currentA:                         number; currentB: number; currentC: number
-  frequency:                        number
-  activePowerImportA:               number; activePowerImportB: number; activePowerImportC: number
-  totalActivePowerImport:           number
-  activePowerExportA:               number; activePowerExportB: number; activePowerExportC: number
-  totalActivePowerExport:           number
-  reactivePowerImportA:             number; reactivePowerImportB: number; reactivePowerImportC: number
-  totalReactivePowerImport:         number
-  reactivePowerExportA:             number; reactivePowerExportB: number; reactivePowerExportC: number
-  totalReactivePowerExport:         number
-  apparentPowerA:                   number; apparentPowerB: number; apparentPowerC: number
-  totalApparentPower:               number
-  powerFactorA:                     number; powerFactorB: number; powerFactorC: number
-  totalPowerFactor:                 number
-  importActiveEnergy:               number
+  transformerId:                      string
+  voltageA:                           number; voltageB: number; voltageC: number
+  currentA:                           number; currentB: number; currentC: number
+  frequency:                          number
+  activePowerImportA:                 number; activePowerImportB: number; activePowerImportC: number
+  totalActivePowerImport:             number
+  activePowerExportA:                 number; activePowerExportB: number; activePowerExportC: number
+  totalActivePowerExport:             number
+  reactivePowerImportA:               number; reactivePowerImportB: number; reactivePowerImportC: number
+  totalReactivePowerImport:           number
+  reactivePowerExportA:               number; reactivePowerExportB: number; reactivePowerExportC: number
+  totalReactivePowerExport:           number
+  apparentPowerA:                     number; apparentPowerB: number; apparentPowerC: number
+  totalApparentPower:                 number
+  powerFactorA:                       number; powerFactorB: number; powerFactorC: number
+  totalPowerFactor:                   number
+  importActiveEnergy:                 number
   distributionTransformerLoadRatio: number
-  negativeSequenceCurrentRatio:     number
+  negativeSequenceCurrentRatio:       number
 }
 
 // ─── 2. API Response Types ─────────────────────────────────
@@ -188,27 +186,27 @@ function buildTransformers(
     const siteName = site?.name ?? '-'
 
     return {
-      id:               String(d.id),
-      siteId:           site?.id ?? '',
+      id:                String(d.id),
+      siteId:            site?.id ?? '',
       siteName,
-      status:           isOnline ? 'online' : 'offline',
-      deviceId:         d.serial,
-      peaNo:            devId,
-      brand:            'Unknown',
-      rated:            160,
-      ratedCT:          250,
-      commType:         TYPE_MAP[d.type] ?? d.type,
-      ipSim:            '',
-      lat:              site?.lat  ?? 0,
-      long:             site?.lng  ?? 0,
-      location:         site?.name ?? d.detail,
-      meter1Phase:      0,
-      meter3Phase:      0,
-      total:            0,
-      installDate:      site?.installDate ?? '',
-      maxLoad:          80,
-      maxFundAI:        0,
-      maxFundAIPercent: 0,
+      status:            isOnline ? 'online' : 'offline',
+      deviceId:          d.serial,
+      peaNo:             devId,
+      brand:             'Unknown',
+      rated:             160,
+      ratedCT:           250,
+      commType:          TYPE_MAP[d.type] ?? d.type,
+      ipSim:             '',
+      lat:               site?.lat  ?? 0,
+      long:              site?.lng  ?? 0,
+      location:          site?.name ?? d.detail,
+      meter1Phase:       0,
+      meter3Phase:       0,
+      total:             0,
+      installDate:       site?.installDate ?? '',
+      maxLoad:           80,
+      maxFundAI:         0,
+      maxFundAIPercent:  0,
     }
   })
   allTransformers.splice(0, allTransformers.length, ...transformers)
@@ -220,35 +218,35 @@ function buildTransformers(
     const pPerPhase = +(pTotal / 3).toFixed(3)
     const pf        = lrData ? toNum(lrData.PF) : 0.9
     return {
-      transformerId:                    t.id,
-      voltageA:                         lrData ? toNum(lrData.V_A) : 0,
-      voltageB:                         lrData ? toNum(lrData.V_B) : 0,
-      voltageC:                         lrData ? toNum(lrData.V_C) : 0,
-      currentA:                         lrData ? toNum(lrData.I_A) : 0,
-      currentB:                         lrData ? toNum(lrData.I_B) : 0,
-      currentC:                         lrData ? toNum(lrData.I_C) : 0,
-      frequency:                        50,
-      activePowerImportA:               pPerPhase,
-      activePowerImportB:               pPerPhase,
-      activePowerImportC:               pPerPhase,
-      totalActivePowerImport:           pTotal,
-      activePowerExportA:               0, activePowerExportB: 0, activePowerExportC: 0,
-      totalActivePowerExport:           0,
-      reactivePowerImportA:             +(pPerPhase * 0.3).toFixed(3),
-      reactivePowerImportB:             +(pPerPhase * 0.3).toFixed(3),
-      reactivePowerImportC:             +(pPerPhase * 0.3).toFixed(3),
-      totalReactivePowerImport:         lrData ? toNum(lrData.Q_Total) : 0,
-      reactivePowerExportA:             0, reactivePowerExportB: 0, reactivePowerExportC: 0,
-      totalReactivePowerExport:         0,
-      apparentPowerA:                   +(pPerPhase / (pf || 1)).toFixed(3),
-      apparentPowerB:                   +(pPerPhase / (pf || 1)).toFixed(3),
-      apparentPowerC:                   +(pPerPhase / (pf || 1)).toFixed(3),
-      totalApparentPower:               lrData ? toNum(lrData.S_Total) : 0,
-      powerFactorA:                     pf, powerFactorB: pf, powerFactorC: pf,
-      totalPowerFactor:                 pf,
-      importActiveEnergy:               0,
+      transformerId:                        t.id,
+      voltageA:                             lrData ? toNum(lrData.V_A) : 0,
+      voltageB:                             lrData ? toNum(lrData.V_B) : 0,
+      voltageC:                             lrData ? toNum(lrData.V_C) : 0,
+      currentA:                             lrData ? toNum(lrData.I_A) : 0,
+      currentB:                             lrData ? toNum(lrData.I_B) : 0,
+      currentC:                             lrData ? toNum(lrData.I_C) : 0,
+      frequency:                            50,
+      activePowerImportA:                   pPerPhase,
+      activePowerImportB:                   pPerPhase,
+      activePowerImportC:                   pPerPhase,
+      totalActivePowerImport:               pTotal,
+      activePowerExportA:                   0, activePowerExportB: 0, activePowerExportC: 0,
+      totalActivePowerExport:               0,
+      reactivePowerImportA:                 +(pPerPhase * 0.3).toFixed(3),
+      reactivePowerImportB:                 +(pPerPhase * 0.3).toFixed(3),
+      reactivePowerImportC:                 +(pPerPhase * 0.3).toFixed(3),
+      totalReactivePowerImport:             lrData ? toNum(lrData.Q_Total) : 0,
+      reactivePowerExportA:                 0, reactivePowerExportB: 0, reactivePowerExportC: 0,
+      totalReactivePowerExport:             0,
+      apparentPowerA:                       +(pPerPhase / (pf || 1)).toFixed(3),
+      apparentPowerB:                       +(pPerPhase / (pf || 1)).toFixed(3),
+      apparentPowerC:                       +(pPerPhase / (pf || 1)).toFixed(3),
+      totalApparentPower:                   lrData ? toNum(lrData.S_Total) : 0,
+      powerFactorA:                         pf, powerFactorB: pf, powerFactorC: pf,
+      totalPowerFactor:                     pf,
+      importActiveEnergy:                   0,
       distributionTransformerLoadRatio: t.rated > 0 ? +((pTotal / t.rated) * 100).toFixed(2) : 0,
-      negativeSequenceCurrentRatio:     0,
+      negativeSequenceCurrentRatio:         0,
     }
   })
   allTransformerRealtime.splice(0, allTransformerRealtime.length, ...realtime)
@@ -261,6 +259,10 @@ let isSiteFetched = false
 export function useSiteData() {
   const isLoading = ref(false)
   const error     = ref<string | null>(null)
+
+  // ─── ย้าย useRuntimeConfig มาไว้ข้างในฟังก์ชันหลัก ───
+  const config = useRuntimeConfig()
+  const BASE_URL = config.public.apiBaseUrl
 
   async function fetchSites() {
     if (isSiteFetched) return
@@ -319,9 +321,9 @@ export function useSiteData() {
           kw:          isOnline ? toNum(lr?.data?.P_Total) : 0,
           province:    '',
           district:    '',
-          deviceId:    dev?.devid      ?? '-',
-          devSerial:   dev?.devserial  ?? '-',
-          devDetail:   dev?.devdetail  ?? 'ไม่มีข้อมูลรายละเอียดอุปกรณ์',
+          deviceId:    dev?.devid       ?? '-',
+          devSerial:   dev?.devserial   ?? '-',
+          devDetail:   dev?.devdetail   ?? 'ไม่มีข้อมูลรายละเอียดอุปกรณ์',
           installDate: dev?.installdate ?? '-',
         }
       })

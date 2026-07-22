@@ -40,20 +40,23 @@ let resizeObserver: ResizeObserver | null = null
 function initMap() {
   if (!mapElement.value) return
 
+  // ─── ดึงค่า Tile URL ผ่าน Runtime Config (Env) ───
+  const config = useRuntimeConfig()
+  const tileUrl = config.public.mapTileUrl as string
+
   // สร้างแผนที่โดยส่งตัวแปร DOM Element เข้าไปแทน string ID
   map = L.map(mapElement.value, {
     center: [13.8508, 100.5581],
     zoom: 11
   })
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // ใช้ตัวแปร tileUrl ที่ดึงมาจาก .env แทนการฟิกซ์ลิงก์
+  L.tileLayer(tileUrl, {
     attribution: '© OpenStreetMap'
   }).addTo(map)
 
   markerGroup.addTo(map)
 
-  // 3. ไม้ตาย: ใช้ ResizeObserver เพื่อคอยมองว่าถ้ากล่องแผนที่ขยายตัว/เปลี่ยนขนาด
-  // ให้บังคับ Leaflet คำนวณภาพกราฟิกใหม่ทันที (แก้ปัญหาจอขาว 100%)
   resizeObserver = new ResizeObserver(() => {
     if (map) {
       map.invalidateSize()

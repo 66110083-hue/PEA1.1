@@ -25,7 +25,8 @@ const statusColor: Record<string, string> = {
 
 // ฟังก์ชันสร้าง HTML Popup ที่แก้ไขให้แสดงรายละเอียดครบถ้วน
 function generatePopupHtml(site: Site) {
-  const baseUrl = 'https://greatways.net/api/assets/img/site?fname=' 
+  const config = useRuntimeConfig()
+const baseUrl = `${config.public.apiBaseUrl}/api/assets/img/site?fname=`
   const imageUrl = site.img && site.img !== '2' ? `${baseUrl}${site.img}` : null
 
   // ดึงค่าและจัดการกรณีข้อมูลเป็นค่าว่าง

@@ -1,0 +1,18 @@
+# Stage 1: Build (เปลี่ยนเป็น node:20-alpine)
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Stage 2: Production (เปลี่ยนเป็น node:20-alpine ด้วย)
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/.output ./.output
+COPY --from=builder /app/package*.json ./
+
+ENV HOST=0.0.0.0
+EXPOSE 3000
+
+CMD ["node", ".output/server/index.mjs"]

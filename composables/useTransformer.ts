@@ -3,8 +3,6 @@
 import { ref, computed, watch } from 'vue'
 import { useSiteData, allTransformers as siteTransformers } from '~/composables/useSiteData'
 
-const BASE_URL = 'https://greatways.net'
-
 export interface Transformer {
   id:           string
   status:       'online' | 'offline'

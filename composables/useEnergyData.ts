@@ -3,13 +3,15 @@ import { ref, computed, type Ref } from 'vue'
 import { allTransformerRealtime }  from './useSiteData'
 import type { TransformerRealtime } from './useSiteData'
 
-const BASE_URL = 'https://greatways.net'
-
 export const useEnergyData = (
   activeMetric:  Ref<string>,
   activePhases:  Ref<string[]>,
   PHASES:        any,
 ) => {
+  // ─── ย้ายมาประกาศข้างในฟังก์ชัน เพื่อป้องกัน Error เรื่อง Nuxt Instance ───
+  const config = useRuntimeConfig()
+  const BASE_URL = config.public.apiBaseUrl
+
   const allData               = ref<any[]>([])
   const isLoading              = ref(false)
   const selectedTransformerId = ref<string | null>(null)
@@ -198,8 +200,8 @@ export const useEnergyData = (
     if (!snap) return
 
     const base = {
-      current: { A: snap.currentA,          B: snap.currentB,          C: snap.currentC          },
-      voltage: { A: snap.voltageA,           B: snap.voltageB,          C: snap.voltageC           },
+      current: { A: snap.currentA,          B: snap.currentB,          C: snap.currentC           },
+      voltage: { A: snap.voltageA,           B: snap.voltageB,           C: snap.voltageC           },
       power:   { A: snap.activePowerImportA, B: snap.activePowerImportB, C: snap.activePowerImportC },
     }
 
@@ -280,7 +282,6 @@ export const useEnergyData = (
         const iB = toNum(columns['I_B']?.[i])
         const iC = toNum(columns['I_C']?.[i])
 
-        // เช็คค่าดิบ P_Total ถ้าเป็น 'nan' ให้คืนค่าเป็น null เพื่อไม่ให้ระบบเอา 0 ไปปะปน
         const rawPTotal = columns['P_Total']?.[i]
         const pTotal = (rawPTotal === 'nan' || rawPTotal === null || rawPTotal === undefined) ? null : Number(rawPTotal)
 
@@ -294,7 +295,7 @@ export const useEnergyData = (
             B: toNum(columns['P_B']?.[i]), 
             C: toNum(columns['P_C']?.[i]) 
           }, 
-          powerTotal: pTotal, // ส่งค่าดิบตรงๆ (ถ้าเป็น nan จะเป็น null ให้กราฟเว้นว่าง ไม่ดีดไป 8.5)
+          powerTotal: pTotal, 
           reactiveTotal: toNum(columns['Q_Total']?.[i]),
           apparentTotal: toNum(columns['S_Total']?.[i]),
           powerFactor: toNum(columns['PF']?.[i]),

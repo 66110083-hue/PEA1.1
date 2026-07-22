@@ -10,8 +10,6 @@ export interface EChartsDataset {
   showArea?: boolean
 }
 
-const BASE_URL = 'https://greatways.net'
-
 export const TOPICS = [
   { value: 'ev',   label: 'Total Power (kW)'      },
   { value: 'pv',   label: 'Phase Current & Power' },
@@ -84,6 +82,9 @@ function resolveSiteId(transformerId: string): string | null {
 }
 
 export function useAnalysisChart() {
+  // ─── ย้ายมาประกาศข้างในฟังก์ชัน เพื่อป้องกัน Error เรื่อง Nuxt Instance ───
+  const config = useRuntimeConfig()
+  const BASE_URL = config.public.apiBaseUrl
 
   const selectedTopic       = ref('ev')
   const selectedTransformer = ref('')
@@ -165,7 +166,7 @@ export function useAnalysisChart() {
       const mo = String(t.getMonth() + 1).padStart(2, '0')
 
       return {
-        time:      multiDay ? `${dd}/${mo} ${hh}:${mm}` : `${hh}:${mm}`,
+        time:       multiDay ? `${dd}/${mo} ${hh}:${mm}` : `${hh}:${mm}`,
         timestamp: t,
         currentA:  iA,
         currentB:  iB,

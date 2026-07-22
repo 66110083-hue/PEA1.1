@@ -3,8 +3,16 @@ export default defineNuxtConfig({
   devServer: {
     host: '0.0.0.0', 
     port: 3000
+  }, // 👈 ต้องมีคอมมาคั่นตรงนี้ให้ถูกต้อง
+
+  // ─── Runtime Config สำหรับดึงค่าจาก .env หรือ Docker Env ───
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.API_BASE_URL || 'https://greatways.net',
+      mapTileUrl: process.env.MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    }
   },
-  
+
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
   app: {
@@ -21,7 +29,6 @@ export default defineNuxtConfig({
           rel: 'stylesheet',
           href: 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css'
         },
-        // --- เพิ่มอันนี้เข้าไปเพื่อให้ ti-chart-line ทำงานได้ ---
         {
           rel: 'stylesheet',
           href: 'https://cdn.jsdelivr.net/gh/theLoop/themify-icons@master/css/themify-icons.css'
