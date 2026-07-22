@@ -280,19 +280,24 @@ export const useEnergyData = (
         const iB = toNum(columns['I_B']?.[i])
         const iC = toNum(columns['I_C']?.[i])
 
-        const pTotal  = toNum(columns['P_Total']?.[i])
-        const pPerPhase = +(pTotal / 3).toFixed(2)
+        // เช็คค่าดิบ P_Total ถ้าเป็น 'nan' ให้คืนค่าเป็น null เพื่อไม่ให้ระบบเอา 0 ไปปะปน
+        const rawPTotal = columns['P_Total']?.[i]
+        const pTotal = (rawPTotal === 'nan' || rawPTotal === null || rawPTotal === undefined) ? null : Number(rawPTotal)
 
         return {
-          label:     `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`,
+          label: `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`,
           timestamp: t,
-          voltage:   { A: vA, B: vB, C: vC },
-          current:   { A: iA, B: iB, C: iC },
-          power:     { A: pPerPhase, B: pPerPhase, C: pPerPhase },
-          powerTotal:    pTotal,
+          voltage: { A: vA, B: vB, C: vC },
+          current: { A: iA, B: iB, C: iC },
+          power: { 
+            A: toNum(columns['P_A']?.[i]), 
+            B: toNum(columns['P_B']?.[i]), 
+            C: toNum(columns['P_C']?.[i]) 
+          }, 
+          powerTotal: pTotal, // ส่งค่าดิบตรงๆ (ถ้าเป็น nan จะเป็น null ให้กราฟเว้นว่าง ไม่ดีดไป 8.5)
           reactiveTotal: toNum(columns['Q_Total']?.[i]),
           apparentTotal: toNum(columns['S_Total']?.[i]),
-          powerFactor:   toNum(columns['PF']?.[i]),
+          powerFactor: toNum(columns['PF']?.[i]),
         }
       })
     } catch (e) {

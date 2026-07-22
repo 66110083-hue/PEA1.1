@@ -11,7 +11,6 @@ import UnifiedAnalysisChart from '~/components/Common/UnifiedAnalysisChart.vue'
 
 const SiteMap = defineAsyncComponent(() => import('~/components/Page map/SiteMap.vue'))
 
-// เอา balanceData และ unit ออกจากการ destructure เพื่อไม่ให้ซ้ำซ้อนกับตัวที่เราจะคำนวณใหม่ด้านล่าง
 const {
   activeMetric, activePhases,
   hasData, isLoading,
@@ -27,108 +26,73 @@ onMounted(() => {
   fetchSites()
 })
 
+// ฟังก์ชันแปลงค่าและเช็คตัวเลข (เปลี่ยน nan หรือ null เป็น 0 เพื่อให้กราฟวาดได้)
+const parseVal = (val: any): number => {
+  if (val === undefined || val === null || val === 'nan' || val === 'NaN' || val === '') return 0
+  if (typeof val === 'object') {
+    return parseVal(val.total ?? val.Total ?? val.value ?? val.val ?? Object.values(val)[0])
+  }
+  const num = Number(val)
+  return isNaN(num) ? 0 : num
+}
+
+// เช็คว่า allData มาในรูปแบบ Array Column จาก API หรือไม่
+const isColumnFormat = computed(() => {
+  return allData.value && allData.value.length > 0 && allData.value[0]?.label && Array.isArray(allData.value[0]?.data)
+})
+
 const chartXData = computed(() => {
-  if (!allData.value) return []
+  if (!allData.value || allData.value.length === 0) return []
+  if (isColumnFormat.value) {
+    const timeCol = allData.value.find((c: any) => c.label === 'timestamp' || c.label === 'time')
+    if (timeCol && timeCol.data) {
+      return timeCol.data.map((t: string) => {
+        if (!t || t === 'nan') return ''
+        const d = new Date(t)
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      })
+    }
+    return []
+  }
   return allData.value.map((d: any) => {
     if (!d.timestamp) return d.label
     const dateObj = new Date(d.timestamp)
-    const day = String(dateObj.getDate()).padStart(2, '0')
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-    return `${day}/${month} ${d.label}`
+    return `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')} ${d.label || ''}`
   })
 })
 
-// คำนวณค่า Total Power ล่าสุด สำหรับส่งให้ PhaseCard ใบที่ 4 (Total)
-// ดึงค่า Total Power ล่าสุด โดยให้ลองเอาจาก latest ก่อน ถ้าไม่มีค่อยไปหาใน allData
+// 🔥 1. ดึงค่า Power ล่าสุด (ดึงค่าดิบ powerTotal จาก API ตรงๆ)
 const latestTotalPower = computed(() => {
-  // 1. ลองดึงจากตัวแปร latest ที่ระบบคำนวณค่าล่าสุดจริงไว้ให้แล้ว
-  if (latest.value) {
-    const fromLatest = latest.value.total ?? latest.value.power ?? latest.value.Total ?? latest.value.kw ?? latest.value.kW
-    if (fromLatest !== undefined && fromLatest !== null) {
-      if (typeof fromLatest === 'object') {
-        return fromLatest.total ?? fromLatest.value ?? fromLatest.val ?? Object.values(fromLatest)[0] ?? 0
-      }
-      return Number(fromLatest) || 0
-    }
-    
-    // กรณีที่ latest เก็บแยกไว้ในเฟส A (เช่นล่าสุดส่งมาเฉลี่ยเฟสละ 3.17) ให้ลองดึงจากเฟส A มาใช้
-    const phaseAPower = latest.value.A?.power ?? latest.value.A?.kw
-    if (phaseAPower !== undefined && phaseAPower !== null) {
-      return Number(phaseAPower) || 0
-    }
-  }
-
-  // 2. แผนสำรอง: ถ้าใน latest ไม่มี ให้ค้นหาจาก allData โดยหา "รายการล่าสุดที่มีค่าไม่เป็น 0"
   if (!allData.value || allData.value.length === 0) return 0
-  
-  // วนลูปจากรายการหลังสุดถอยกลับมา หาตัวเลขตัวแรกที่ไม่ใช่ 0
+
+  if (isColumnFormat.value) {
+    const col = allData.value.find((c: any) => c.label === 'P_Total' || c.label === 'powerTotal')
+    if (!col || !col.data) return 0
+
+    // วนจากท้าย array ไปหาค่าที่ไม่ใช่ nan ตัวล่าสุด
+    for (let i = col.data.length - 1; i >= 0; i--) {
+      const raw = col.data[i]
+      if (raw === undefined || raw === null) continue
+      if (typeof raw === 'string' && raw.trim().toLowerCase() === 'nan') continue
+      const val = Number(raw)
+      if (!isNaN(val)) return val
+    }
+    return 0
+  }
+   // fallback สำหรับ row format
   for (let i = allData.value.length - 1; i >= 0; i--) {
     const item = allData.value[i]
-    if (!item) continue
-    
-    const val = item.power ?? item.Power ?? item.total ?? item.Total ?? 
-                item.totalPower ?? item.total_power ?? item.active_power ?? 
-                item.p ?? item.P ?? item.kw ?? item.kW ?? 0;
-
-    let finalVal = 0
-    if (typeof val === 'object' && val !== null) {
-      finalVal = val.total ?? val.Total ?? val.value ?? val.val ?? val.sum ?? Object.values(val)[0] ?? 0;
-    } else {
-      finalVal = Number(val) || 0;
+    if (item && item.powerTotal !== undefined && item.powerTotal !== null) {
+      const val = Number(item.powerTotal)
+      if (!isNaN(val)) return val
     }
-
-    // ถ้าเจอรายการล่าสุดที่ค่ามากกว่า 0 ให้ส่งค่านั้นออกไปทันที
-    if (finalVal > 0) return finalVal
   }
-
   return 0
 })
 
-// คำนวณความสมดุล 3 เฟสใหม่ โดยบังคับใช้ Current (A) หรือ Voltage (V) เท่านั้น ไม่ใช้ Power
-const balanceData = computed(() => {
-  if (!allData.value || allData.value.length === 0) return []
-
-  const targetMetric = activeMetric.value === 'power' ? 'current' : activeMetric.value
-  
-  return PHASES.map((ph: any) => {
-    const values = allData.value.map((d: any) => Number(d[targetMetric]?.[ph.id]) || 0)
-    const sum = values.reduce((a: number, b: number) => a + b, 0)
-    const avg = values.length > 0 ? sum / values.length : 0
-
-    return {
-      id: ph.id,
-      color: ph.color,
-      avg: avg
-    }
-  }).map((item, _, array) => {
-    const maxVal = Math.max(...array.map(i => i.avg), 1)
-    return {
-      ...item,
-      pct: Math.round((item.avg / maxVal) * 100)
-    }
-  })
-})
-
-// หน่วยของความสมดุล (โชว์ V ถ้าเลือก Voltage, นอกนั้นโชว์ A)
-const balanceUnit = computed(() => {
-  if (activeMetric.value === 'voltage') return 'V'
-  return 'A'
-})
-
-// หัวข้อของการ์ดความสมดุล
-const balanceTitle = computed(() => {
-  if (activeMetric.value === 'voltage') return 'ความสมดุลแรงดัน 3 เฟส (เฉลี่ย)'
-  return 'ความสมดุลกระแส 3 เฟส (เฉลี่ย)'
-})
-
-// ปรับปรุง chartSeries: ดักจับทุกชื่อ Key ที่เป็นไปได้สำหรับ Total Power
+// 🔥 2. ปรับกราฟ Power (พล็อตค่าดิบ powerTotal จาก Array ลงแกน Y ตรงๆ)
 const chartSeries = computed(() => {
   if (!allData.value || allData.value.length === 0) return []
-  
-  if (allData.value[0]) {
-    console.log('📌 โครงสร้างข้อมูลจริงจาก API (1 รายการ):', JSON.stringify(allData.value[0], null, 2))
-  }
-
   const metric = activeMetric.value as 'current' | 'voltage' | 'power'
 
   if (metric === 'power') {
@@ -136,27 +100,57 @@ const chartSeries = computed(() => {
       name: 'Total Power (kW)',
       color: '#378ADD',
       data: allData.value.map((d: any) => {
-        const val = d.power ?? d.Power ?? d.total ?? d.Total ?? 
-                    d.totalPower ?? d.total_power ?? d.active_power ?? 
-                    d.p ?? d.P ?? d.kw ?? d.kW ?? d.val ?? d.value ?? 0;
-
-        if (typeof val === 'object' && val !== null) {
-          return val.total ?? val.Total ?? val.value ?? val.val ?? val.sum ?? Object.values(val)[0] ?? 0;
-        }
-
-        return Number(val) || 0;
+        const val = Number(d.powerTotal)
+        return isNaN(val) ? 0 : val
       })
     }]
   }
-
   return PHASES.filter((p: any) => activePhases.value.includes(p.id)).map((p: any) => {
+    let phaseData: number[] = []
+
+    if (isColumnFormat.value) {
+      const prefix = metric === 'voltage' ? 'V_' : 'I_'
+      const col = allData.value.find((c: any) => c.label === `${prefix}${p.id}` || c.label === `${metric}_${p.id}`)
+      if (col && col.data) {
+        phaseData = col.data.map((v: any) => parseVal(v))
+      }
+    } else {
+      phaseData = allData.value.map((d: any) => parseVal(d[metric]?.[p.id]))
+    }
+
     return {
       name: `เฟส ${p.id}`,
       color: p.color,
-      data: allData.value.map((d: any) => d[metric]?.[p.id] ?? 0)
+      data: phaseData
     }
   })
 })
+
+const balanceData = computed(() => {
+  if (!allData.value || allData.value.length === 0) return []
+  const targetMetric = activeMetric.value === 'power' ? 'current' : activeMetric.value
+  
+  return PHASES.map((ph: any) => {
+    let values: number[] = []
+    if (isColumnFormat.value) {
+      const prefix = targetMetric === 'voltage' ? 'V_' : 'I_'
+      const col = allData.value.find((c: any) => c.label === `${prefix}${ph.id}`)
+      if (col && col.data) values = col.data.map((v: any) => parseVal(v))
+    } else {
+      values = allData.value.map((d: any) => parseVal(d[targetMetric]?.[ph.id]))
+    }
+
+    const sum = values.reduce((a: number, b: number) => a + b, 0)
+    const avg = values.length > 0 ? sum / values.length : 0
+    return { id: ph.id, color: ph.color, avg }
+  }).map((item, _, array) => {
+    const maxVal = Math.max(...array.map(i => i.avg), 1)
+    return { ...item, pct: Math.round((item.avg / maxVal) * 100) }
+  })
+})
+
+const balanceUnit = computed(() => activeMetric.value === 'voltage' ? 'V' : 'A')
+const balanceTitle = computed(() => activeMetric.value === 'voltage' ? 'ความสมดุลแรงดัน 3 เฟส (เฉลี่ย)' : 'ความสมดุลกระแส 3 เฟส (เฉลี่ย)')
 
 function handleLocationUpdate(payload: { siteId: string }) {
   selectedSiteId.value = payload.siteId || null
@@ -175,8 +169,6 @@ function onMapSelect(id: string) {
 <template>
   <div class="main-content">
     <template v-if="hasData">
-      
-      <!-- 1. กลุ่มการ์ด 3 เฟส (A, B, C) แบ่ง 3 คอลัมน์เท่าๆ กัน -->
       <div class="phase-grid">
         <PhaseCard
           v-for="ph in PHASES" 
@@ -189,7 +181,6 @@ function onMapSelect(id: string) {
         />
       </div>
 
-      <!-- 2. แยกการ์ด Total Power ออกมาอยู่นอก grid และสั่งให้กว้างเต็ม 100% -->
       <div style="width: 100%; margin-top: 16px;">
         <PhaseCard
           phase="Total"
@@ -247,26 +238,18 @@ function onMapSelect(id: string) {
     </div>
 
     <template v-if="hasData">
-      <!-- ปรับ class แบบไดนามิกเพื่อเปลี่ยนเลย์เอาต์ตามเมนูที่เลือก -->
       <div :class="activeMetric === 'power' ? 'single-column-row' : 'equal-height-row'">
         
-      <!-- 1. การ์ดสถิติประมวลผล -->
         <div class="card dashboard-card">
           <div class="card-inner">
-            <div class="card-title mb-4">
-              <i class="ti ti-calculator text-blue" /> <span>สถิติประมวลผล</span>
-            </div>
-            
-            <!-- สลับ Container: ถ้าเลือก Power ให้ใช้ Grid 3 ช่องแนวนอน (stats-power-grid) -->
+            <div class="card-title mb-4"><i class="ti ti-calculator text-blue" /> <span>สถิติประมวลผล</span></div>
             <div :class="activeMetric === 'power' ? 'stats-power-grid' : 'card-body-content'">
-              
               <div 
                 v-for="s in statistics" 
                 :key="s.label" 
                 :class="activeMetric === 'power' ? 'stat-mini-card' : 'stats-row-custom'"
                 :style="activeMetric === 'power' ? {} : { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'start', padding: '10px 0', borderBottom: '1px solid #f3f4f6', minHeight: '58px' }"
               >
-                <!-- ── โหมด POWER: แสดงเป็นกล่องแนวนอน (ข้อความอยู่บน ตัวเลขใหญ่ด้านล่าง) ── -->
                 <template v-if="activeMetric === 'power'">
                   <div class="stat-label">{{ s.label }}</div>
                   <div class="stat-value-box">
@@ -275,7 +258,6 @@ function onMapSelect(id: string) {
                   </div>
                 </template>
 
-                <!-- ── โหมดปกติ (Current/Voltage): แสดงเป็นบรรทัดแนวตั้งตามเดิม ── -->
                 <template v-else>
                   <span class="text-muted" style="font-size: 13px; align-self: center;">{{ s.label }}</span>
                   <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
@@ -283,14 +265,11 @@ function onMapSelect(id: string) {
                     <div v-if="s.sub" style="font-size: 10px; color: var(--color-text-3); margin-top: 2px; line-height: 1.2;">{{ s.sub }}</div>
                   </div>
                 </template>
-
               </div>
-
             </div>
           </div>
         </div>
 
-        <!-- 2. การ์ดความสมดุล 3 เฟส (จะแสดงเฉพาะตอนที่ไม่ใช่เมนู Power) -->
         <div v-if="activeMetric !== 'power'" class="card dashboard-card">
           <div class="card-inner">
             <div class="card-title mb-4">
@@ -323,7 +302,6 @@ function onMapSelect(id: string) {
 .spin-icon { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
-/* เมื่อเหลือการ์ดเดียว ให้ขยายเต็มความกว้าง 100% */
 .single-column-row {
   display: grid;
   grid-template-columns: 1fr;
@@ -331,34 +309,16 @@ function onMapSelect(id: string) {
   margin-top: 16px;
 }
 
-/* ปรับสถิติให้เรียงแนวนอน 3 คอลัมน์ เมื่ออยู่โหมดกว้างเต็มหน้าจอ */
-.stats-grid-horizontal {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  padding: 8px 0;
-}
-
-.stats-grid-horizontal .stats-row-custom {
-  border-bottom: none !important;
-  border-right: 1px solid #f3f4f6;
-  padding-right: 16px;
-}
-
-.stats-grid-horizontal .stats-row-custom:last-child {
-  border-right: none;
-}
 .stats-power-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* บังคับแบ่งพื้นที่เป็น 3 ช่องเท่าๆ กันเป๊ะ */
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   width: 100%;
   margin-top: 4px;
 }
 
-/* ดีไซน์กล่องย่อยแต่ละช่องให้เป็น Mini-card สวยงาม */
 .stat-mini-card {
-  background-color: #f8fafc; /* สีพื้นหลังเทาอมฟ้าอ่อน ช่วยแบ่งเป็นสัดส่วนชัดเจน */
+  background-color: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 16px;
@@ -375,7 +335,6 @@ function onMapSelect(id: string) {
   border-color: #cbd5e1;
 }
 
-/* จัดฟอนต์หัวข้อด้านบน */
 .stat-label {
   font-size: 13px;
   font-weight: 600;
@@ -383,20 +342,17 @@ function onMapSelect(id: string) {
   margin-bottom: 12px;
 }
 
-/* จัดกลุ่มตัวเลขด้านล่าง */
 .stat-value-box {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-/* ขยายตัวเลขให้ใหญ่สะดุดตา */
 .stat-num {
   font-size: 22px;
   line-height: 1.1;
 }
 
-/* ข้อความวันที่ย่อยด้านล่าง ไม่ให้โดนตัดคำ */
 .stat-sub {
   font-size: 11px;
   color: #64748b;
@@ -404,7 +360,6 @@ function onMapSelect(id: string) {
   white-space: nowrap;
 }
 
-/* รองรับหน้าจอมือถือหรือแท็บเล็ต ถ้าจอเล็กจะพับกลับมาเรียงซ้อนให้เอง */
 @media (max-width: 768px) {
   .stats-power-grid {
     grid-template-columns: 1fr;
