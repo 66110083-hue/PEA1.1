@@ -3,7 +3,6 @@ services:
     build: .
     ports:
       - "3000:3000"
-    environment:
-      - API_BASE_URL=https://greatways.net
-      - MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+    env_file:             # เพิ่มคำสั่งนี้เข้ามาแทน environment:
+      - ../.env           # ใส่ Path ชี้ถอยหลังออกไปข้างนอก 1 ระดับ (โฟลเดอร์ hogzilla)
     restart: always
