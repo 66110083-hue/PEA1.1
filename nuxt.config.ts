@@ -3,13 +3,17 @@ export default defineNuxtConfig({
   devServer: {
     host: '0.0.0.0', 
     port: 3000
-  }, // 👈 ต้องมีคอมมาคั่นตรงนี้ให้ถูกต้อง
+  },
 
   // ─── Runtime Config สำหรับดึงค่าจาก .env หรือ Docker Env ───
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.API_BASE_URL || 'https://greatways.net',
-      mapTileUrl: process.env.MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      mapTileUrl: process.env.MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      
+      // 🔥 เพิ่ม 2 ตัวแปรนี้เข้ามาเพื่อให้สลับโหมดผ่าน Docker ได้ทันที
+      maintenanceMode: process.env.VITE_MAINTENANCE_MODE || 'false',
+      guestMode: process.env.VITE_GUEST_MODE || 'false',
     }
   },
 

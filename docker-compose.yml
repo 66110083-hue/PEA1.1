@@ -3,6 +3,9 @@ services:
     build: .
     ports:
       - "3000:3000"
-    env_file:             # เพิ่มคำสั่งนี้เข้ามาแทน environment:
-      - ../.env           # ใส่ Path ชี้ถอยหลังออกไปข้างนอก 1 ระดับ (โฟลเดอร์ hogzilla)
+    env_file:             
+      # ระบุ Path เต็มฝั่งเครื่อง Host
+      - /home/hogzilla/.env
+    volumes:
+      - /home/hogzilla/data:/app/data
     restart: always
