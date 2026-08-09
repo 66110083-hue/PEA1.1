@@ -1,7 +1,7 @@
 // 📂 composables/useTransformer.ts
 
 import { ref, computed, watch } from 'vue'
-import { useSiteData, allTransformers as siteTransformers } from '~/composables/useSiteData'
+import { useSiteData, allTransformers as siteTransformers, allSites } from '~/composables/useSiteData'
 
 export interface Transformer {
   id:           string
@@ -26,7 +26,6 @@ export const emptyForm = (): Transformer => ({
   province: '', location: '', lat: 0, long: 0, installDate: '', imagePreview: '',
 })
 
-const { allSites } = useSiteData()
 export const PROVINCES  = [
   'กรุงเทพมหานคร','นนทบุรี','ปทุมธานี','สมุทรปราการ','นครปฐม',
   'สมุทรสาคร','อยุธยา','สระบุรี','ชลบุรี','ระยอง',
@@ -64,7 +63,7 @@ async function fetchDevices(): Promise<Transformer[]> {
     lat:          t.lat,
     long:         t.long,
     installDate:  t.installDate,
-    imagePreview: '',
+    imagePreview: t.img,
   }))
 }
 
@@ -105,7 +104,7 @@ export function useTransformer() {
         .filter(apiRow => !hiddenIds.has(apiRow.id))
         .map(apiRow => {
           const localRow = local.find(l => l.id === apiRow.id)
-          return localRow ? { ...apiRow, ...localRow, status: apiRow.status } : apiRow
+          return localRow ? { ...apiRow, ...localRow, status: apiRow.status, imagePreview: apiRow.imagePreview } : apiRow
         })
 
       isInitialized = true

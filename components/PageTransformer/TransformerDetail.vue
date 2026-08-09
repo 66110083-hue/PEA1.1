@@ -2,12 +2,14 @@
 import { computed, watch } from 'vue'
 import { useDashboard } from '~/composables/useDashboard'
 import { useTransformer, type Transformer } from '~/composables/useTransformer'
-import TransformerRealtimeTable from '~/components/PageTransformer/TransformerRealtimeTable.vue'
 import EnergyFilter from '~/components/PageOverview/EnergyFilter.vue'
 // ── Props ────────────────────────────────────────────────
 const props = defineProps<{
   transformerId: string   // รับค่าคีย์สลักเชื่อมเข้ามา (เช่น 'M-01', 'TF-M-01' หรือก้อน Object)
 }>()
+
+// ── Runtime config (สำหรับประกอบ URL รูปภาพ) ─────────────
+const config = useRuntimeConfig()
 
 // ── Static info ──────────────────────────────────────────
 const { transformers } = useTransformer()
@@ -36,57 +38,24 @@ const targetDashboardId = computed(() => {
   return tfInfo.value ? tfInfo.value.id : props.transformerId
 })
 
+// ── รูปภาพหม้อแปลง: ประกอบ URL เต็มจากชื่อไฟล์ + runtime config ──
+// ใช้ endpoint เดียวกับ popup ในหน้าแผนที่ (DashboardMap.vue): /api/assets/img/site?fname=
+// '2' คือค่า sentinel จาก backend ที่แปลว่า "ไม่มีรูป"
+const transformerImageUrl = computed(() => {
+  const filename = tfInfo.value?.imagePreview
+  if (!filename || filename === '2') return null
+  return `${config.public.apiBaseUrl}/api/assets/img/site?fname=${filename}`
+})
+
 // ── Dashboard (chart + energy data) ─────────────────────
 const {
-  activeMetric, activePhases, hasData, isLoading,
+  activeMetric, activePhases, togglePhase, hasData, isLoading,
   PHASES, METRIC_TABS,
   latest, statistics, balanceData,
   unit, lastUpdateText,
-  realtimeSnapshot,
+  defaultStartDate, defaultEndDate,
   handleFilter,
 } = useDashboard({ transformerId: targetDashboardId.value })
-
-// ── Realtime table rows (จาก realtimeSnapshot) ──────────
-// 📂 components/PageTransformer/TransformerDetail.vue
-
-const realtimeRows = computed(() => {
-  // 1. ลองตรวจสอบว่ามีข้อมูล realtimeSnapshot ตรงๆ หรือไม่
-  const s = realtimeSnapshot.value
-  if (s && Object.keys(s).length > 0) {
-    return [
-      { label: 'Voltage Phase A', value: s.voltageA, unit: 'V' },
-      { label: 'Voltage Phase B', value: s.voltageB, unit: 'V' },
-      { label: 'Voltage Phase C', value: s.voltageC, unit: 'V' },
-      { label: 'Current Phase A', value: s.currentA, unit: 'A' },
-      { label: 'Current Phase B', value: s.currentB, unit: 'A' },
-      { label: 'Current Phase C', value: s.currentC, unit: 'A' },
-      { label: 'Total Frequency', value: s.frequency, unit: 'Hz' },
-      { label: 'Total Active Power Import', value: s.totalActivePowerImport, unit: 'kW' },
-      { label: 'Total Apparent Power', value: s.totalApparentPower, unit: 'kVA' },
-      { label: 'Total Power Factor', value: s.totalPowerFactor, unit: 'PF' },
-      { label: 'Distribution Transformer Load Ratio', value: s.distributionTransformerLoadRatio, unit: '%' }
-    ]
-  }
-
-  // 2. ✨ แผนสำรอง: ถ้า realtimeSnapshot ว่างเปล่า ให้ดึงข้อมูลจาก latest (ตัวเดียวกับที่เกจหน้าปัดใช้) มาแสดงแทน!
-  const l = latest.value
-  if (l && Object.keys(l).length > 0) {
-    return [
-      { label: 'Voltage Phase A', value: l.A?.voltage ?? 0, unit: 'V' },
-      { label: 'Voltage Phase B', value: l.B?.voltage ?? 0, unit: 'V' },
-      { label: 'Voltage Phase C', value: l.C?.voltage ?? 0, unit: 'V' },
-      { label: 'Current Phase A', value: l.A?.current ?? 0, unit: 'A' },
-      { label: 'Current Phase B', value: l.B?.current ?? 0, unit: 'A' },
-      { label: 'Current Phase C', value: l.C?.current ?? 0, unit: 'A' },
-      { label: 'Active Power Phase A', value: l.A?.power ?? 0, unit: 'kW' },
-      { label: 'Active Power Phase B', value: l.B?.power ?? 0, unit: 'kW' },
-      { label: 'Active Power Phase C', value: l.C?.power ?? 0, unit: 'kW' },
-    ]
-  }
-
-  // 3. ถ้าไม่มีข้อมูลเลยจริงๆ ค่อยส่ง Array ว่างกลับไปเพื่อแสดงข้อความ "ไม่มีข้อมูล realtime"
-  return []
-})
 
 // ── Gauge helpers ────────────────────────────────────────
 function gaugeArc(value: number, min: number, max: number, size = 100) {
@@ -152,10 +121,11 @@ const gauges = computed(() => {
           <div class="td-hero">
            <div class="td-img-box">
   <img 
-    v-if="tfInfo?.imagePreview" 
-    :src="tfInfo.imagePreview" 
+    v-if="transformerImageUrl" 
+    :src="transformerImageUrl" 
     class="td-uploaded-img" 
     alt="Transformer Image"
+    @error="($event.target as HTMLImageElement).style.display = 'none'"
   />
   <span v-else>🔌</span>
 </div>
@@ -210,9 +180,7 @@ const gauges = computed(() => {
               class="td-phase-btn"
               :class="{ active: activePhases.includes(p.id) }"
               :style="{ borderColor: p.color, color: p.color, background: activePhases.includes(p.id) ? p.color + '18' : 'transparent' }"
-              @click="activePhases.includes(p.id)
-                ? activePhases.splice(activePhases.indexOf(p.id), 1)
-                : activePhases.push(p.id)"
+              @click="togglePhase(p.id)"
             >{{ p.id }}</button>
           </div>
           <span style="margin-left:12px;font-size:11px;color:var(--color-text-3)">
@@ -226,6 +194,8 @@ const gauges = computed(() => {
               :loading="isLoading"
               :init-site-id="tfInfo?.siteId || ''"
               :hide-site-selector="true"
+              :init-start-date="defaultStartDate"
+              :init-end-date="defaultEndDate"
               @apply="handleFilter"
             />
           </div>
@@ -263,12 +233,6 @@ const gauges = computed(() => {
           </div>
         </div>
       </div>
-
-<TransformerRealtimeTable 
-  :rows="realtimeRows" 
-  :allData="historyData ?? []" 
-/>
-
     </template>
   </div>
 </template>

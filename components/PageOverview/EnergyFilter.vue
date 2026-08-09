@@ -6,6 +6,8 @@ const props = defineProps<{
   loading?: boolean
   initSiteId?: string
   hideSiteSelector?: boolean   // ✅ เพิ่ม: ซ่อน dropdown เมื่อ site ถูกกำหนดตายตัวแล้ว (เช่นหน้า Transformer Detail)
+  initStartDate?: string       // ✅ เพิ่ม: ISO date string (YYYY-MM-DD) ตั้งค่าเริ่มต้นวันที่เริ่มต้น
+  initEndDate?: string         // ✅ เพิ่ม: ISO date string (YYYY-MM-DD) ตั้งค่าเริ่มต้นวันที่สิ้นสุด
 }>()
 
 const emit = defineEmits(['apply', 'update:location'])
@@ -14,12 +16,17 @@ const { allSites } = useSiteData()
 
 const selectedSiteId = ref(props.initSiteId || '')
 
-const startDate = ref(new Date())
-const endDate   = ref(new Date())
+// ✅ ถ้ามี initStartDate/initEndDate ส่งมา ใช้ค่านั้น ไม่งั้น fallback เป็นวันนี้เหมือนเดิม
+const startDate = ref(props.initStartDate ? new Date(props.initStartDate) : new Date())
+const endDate   = ref(props.initEndDate   ? new Date(props.initEndDate)   : new Date())
 
 const toISO = (d: Date) => d.toISOString().split('T')[0]
 
 watch(() => props.initSiteId, (val) => { selectedSiteId.value = val || '' })
+
+// ✅ sync ค่าจาก parent ถ้า initStartDate/initEndDate เปลี่ยนทีหลัง (เช่น mount แล้ว resolve เสร็จ)
+watch(() => props.initStartDate, (val) => { if (val) startDate.value = new Date(val) })
+watch(() => props.initEndDate,   (val) => { if (val) endDate.value   = new Date(val) })
 
 // ✅ ชื่อ site ที่จะโชว์แบบ read-only ตอนซ่อน dropdown
 const lockedSiteName = computed(() => {

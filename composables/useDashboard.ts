@@ -15,10 +15,19 @@ export interface DashboardOptions {
   transformerId?: string
 }
 
+// ─── ค่าเริ่มต้นช่วงวันที่: วันที่ 1 ของเดือนปัจจุบัน ถึง วันนี้ ─────
+function getMonthStartISO(): string {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+}
+function getTodayISO(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
 export function useDashboard(options: DashboardOptions = {}) {
 
   const activeMetric = ref('current')
-  const { PHASES, activePhases } = usePhaseSelection()
+  const { PHASES, activePhases, togglePhase } = usePhaseSelection()
 
   const {
     allData, isLoading,
@@ -34,9 +43,13 @@ export function useDashboard(options: DashboardOptions = {}) {
 
   const selectedSiteId = ref<string | null>(null)
 
+  // ─── ช่วงวันที่ default ที่ใช้จริง (ให้ EnergyFilter ผูก init-date ตรงกับข้อมูลที่โหลด) ──
+  const defaultStartDate = ref(getMonthStartISO())
+  const defaultEndDate   = ref(getTodayISO())
+
   const hasData = computed(() => allData.value && allData.value.length > 0)
 
-  const { refreshChart } = useEnergyChart(
+  const { init: initChart, refreshChart } = useEnergyChart(
     'historyLineChart',
     allData,
     activeMetric,
@@ -74,8 +87,10 @@ export function useDashboard(options: DashboardOptions = {}) {
       selectedSiteId.value = resolveSiteId(tid)
     }
 
-    const startDateStr = filter.startDate || new Date().toISOString().split('T')[0]
-    const endDateStr   = filter.endDate   || new Date().toISOString().split('T')[0]
+    // ✅ ถ้าไม่ได้ส่ง startDate/endDate มา ใช้ค่า default (เดือนปัจจุบัน ถึง วันนี้)
+    // แทนที่จะเป็น "วันนี้ถึงวันนี้" แบบเดิม ซึ่งมักไม่มีข้อมูลให้แสดง
+    const startDateStr = filter.startDate || defaultStartDate.value
+    const endDateStr   = filter.endDate   || defaultEndDate.value
 
     if (selectedSiteId.value) {
       await fetchEnergyData(selectedSiteId.value, startDateStr, endDateStr)
@@ -85,7 +100,11 @@ export function useDashboard(options: DashboardOptions = {}) {
     }
   }
 
-  onMounted(() => {
+  onMounted(async () => {
+    // ✅ ต้องสร้าง Chart.js instance ก่อน ไม่งั้น refreshChart() จะหา instance ไม่เจอตลอดไป
+    await nextTick()
+    initChart()
+
     if (options.transformerId) {
       selectedTransformerId.value = options.transformerId
       // resolve siteId ทันทีตอน mount
@@ -98,11 +117,15 @@ export function useDashboard(options: DashboardOptions = {}) {
     }
   })
 
-  watch([activeMetric, activePhases], refreshChart)
+  // ✅ เดิม watch แค่ activeMetric/activePhases เฉยๆ พอข้อมูลโหลดเสร็จจาก fetchEnergyData()
+  // แล้ว allData เปลี่ยนค่า ไม่มีอะไรสั่งให้กราฟ redraw เลย เพิ่ม watch(allData) เข้ามาด้วย
+  watch(allData, refreshChart)
+  watch([activeMetric, activePhases], refreshChart, { deep: true })
 
   return {
     activeMetric,
     activePhases,
+    togglePhase,
     hasData,
     isLoading,
     PHASES,
@@ -116,6 +139,8 @@ export function useDashboard(options: DashboardOptions = {}) {
     selectedSiteId,
     selectedTransformerId,
     realtimeSnapshot,
+    defaultStartDate,
+    defaultEndDate,
     handleFilter,
     fetchEnergyData,
   }

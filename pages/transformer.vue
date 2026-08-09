@@ -144,7 +144,7 @@ function backToList() {
           <div style="display:flex;gap:8px;align-items:center">
             <div style="position:relative">
               <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-3);font-size:14px"/>
-              <input v-model="searchQuery" placeholder="Search by PEA No. / Device ID"
+              <input v-model="searchQuery" placeholder="Search by Site ID/ Site Name "
                 style="padding:7px 12px 7px 32px;border:1px solid var(--color-border-md);border-radius:var(--radius-md);font-size:12px;width:240px;"/>
             </div>
             <select v-model="statusFilter"

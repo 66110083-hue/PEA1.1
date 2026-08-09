@@ -42,6 +42,7 @@ export interface Transformer {
   deviceId:           string
   peaNo:              string
   brand:              string
+  img:                string
   rated:              number
   ratedCT:            number
   commType:           string
@@ -193,6 +194,7 @@ function buildTransformers(
       deviceId:          d.serial,
       peaNo:             devId,
       brand:             'Unknown',
+      img:               site?.img ?? '',
       rated:             160,
       ratedCT:           250,
       commType:          TYPE_MAP[d.type] ?? d.type,
