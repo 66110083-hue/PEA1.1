@@ -262,9 +262,11 @@ export function useSiteData() {
   const isLoading = ref(false)
   const error     = ref<string | null>(null)
 
-  // ─── ย้าย useRuntimeConfig มาไว้ข้างในฟังก์ชันหลัก ───
   const config = useRuntimeConfig()
-  const BASE_URL = config.public.apiBaseUrl
+  const isGuest = String(config.public.guestMode) === 'true'
+
+  // 🔥 จุดที่ต้องแก้: ถ้าเป็น Guest ให้ดึงโครงสร้างแผนที่จากระบบจริงมาแสดงเลย จะได้มีหมุดให้กด
+  const BASE_URL = isGuest ? 'https://greatways.net' : config.public.apiBaseUrl
 
   async function fetchSites() {
     if (isSiteFetched) return

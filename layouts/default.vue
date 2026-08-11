@@ -50,7 +50,7 @@ onBeforeUnmount(() => { if (clockTimer) clearInterval(clockTimer) })
         <div class="sidebar-logo-icon"><img src="/logo.png" alt="logo" /></div>
         <div>
           <div class="sidebar-logo-text">PEA</div>
-          <div class="sidebar-logo-sub">Energy Monitor 3φ</div>
+          <div class="sidebar-logo-sub">Balance Building</div>
         </div>
       </div>
 

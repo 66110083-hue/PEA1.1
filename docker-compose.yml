@@ -4,8 +4,7 @@ services:
     ports:
       - "3000:3000"
     env_file:             
-      # ระบุ Path เต็มฝั่งเครื่อง Host
-      - /home/hogzilla/.env
+      - /home/hogzilla/.env.real
     volumes:
       - /home/hogzilla/data:/app/data
     restart: always

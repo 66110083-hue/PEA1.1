@@ -21,7 +21,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   app: {
     head: {
-      title: 'PEA-Smart-Energy — ระบบติดตามพลังงาน 3 เฟส',
+      title: 'PEA-Balance Building',
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

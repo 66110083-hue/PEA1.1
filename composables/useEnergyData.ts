@@ -10,7 +10,7 @@ export const useEnergyData = (
 ) => {
   // ─── ย้ายมาประกาศข้างในฟังก์ชัน เพื่อป้องกัน Error เรื่อง Nuxt Instance ───
   const config = useRuntimeConfig()
-  const BASE_URL = config.public.apiBaseUrl
+  const BASE_URL = config.public.apiBaseUrl || 'https://greatways.net'
 
   const allData               = ref<any[]>([])
   const isLoading              = ref(false)
@@ -244,10 +244,11 @@ export const useEnergyData = (
   async function fetchEnergyData(
     siteId: string | number,
     startDate: string, 
-    endDate:   string, 
+    endDate: string, 
   ) {
     isLoading.value = true
     try {
+      // ✅ ต้องใส่ Object ของพารามิเตอร์จริงๆ ตรงนี้ครับ
       const params = new URLSearchParams({
         source: 'site',
         siteid: String(siteId),
@@ -255,7 +256,13 @@ export const useEnergyData = (
         end:    toApiDateFormat(endDate),
       })
 
-      const res  = await fetch(`${BASE_URL}/api/measure?${params.toString()}`)
+      const isGuest = String(config.public.guestMode) === 'true'
+      
+      const fetchUrl = isGuest 
+        ? '/api/mock-energy' 
+        : `${BASE_URL}/api/measure?${params.toString()}`
+
+      const res = await fetch(fetchUrl)
       const json = await res.json()
 
       // ดักเผื่อ API ตอบกลับมาเป็น success หรือ susscess (สะกดผิด) ได้ทั้งคู่
