@@ -68,13 +68,3 @@ guest.env
 ```
 
 ---
-
-## 📋 สรุปแบบเปรียบเทียบ
-
-| รายการ | โหมดใช้งานจริง (`.env.real`) | โหมดจำลอง (`guest.env`) |
-|---|---|---|
-| ไฟล์ Environment | `.env.real` | `guest.env` |
-| `NUXT_PUBLIC_GUEST_MODE` | `false` | `true` |
-| `NUXT_PUBLIC_MAINTENANCE_MODE` | `false` | `false` |
-| `NUXT_PUBLIC_API_BASE_URL` | `https://greatways.net` | `/api/mock-energy` |
-| คำสั่งรัน | `docker compose --env-file .env.real up -d --build` | `docker compose --env-file guest.env up -d --build` |
