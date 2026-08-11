@@ -82,7 +82,7 @@ PEA1.1/
 ## 📦 Dependencies
 
 - `nuxt` ^3.10
-- `chart.js` ^4.4 (lazy loaded client-side only)
+- `echart.js` ^4.4 (lazy loaded client-side only)
 - Tabler Icons (CDN via nuxt.config head)
 - IBM Plex Sans Thai / Mono (Google Fonts)
 
