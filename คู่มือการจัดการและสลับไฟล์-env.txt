@@ -1,0 +1,80 @@
+# 📘 คู่มือการจัดการและสลับไฟล์ `.env`
+
+ในโปรเจกต์นี้ เราจะแยกไฟล์ `.env` ออกเป็น **2 ไฟล์หลัก** เพื่อให้สามารถสลับโหมดการทำงานได้อย่างง่ายดาย ระหว่าง **โหมดใช้งานจริง** และ **โหมดจำลอง (Guest Mode)**
+
+---
+
+## 1️⃣ ไฟล์สำหรับโหมดใช้งานจริง (`.env.real`)
+
+สร้างไฟล์ชื่อ **`.env.real`** ไว้ที่ **Root Directory** ของโปรเจกต์ (ระดับเดียวกับ `nuxt.config.ts` และ `docker-compose.yml`) โดยใส่ค่าคอนฟิกดังนี้:
+
+```env
+NUXT_PUBLIC_MAINTENANCE_MODE=false
+NUXT_PUBLIC_API_BASE_URL=https://greatways.net
+MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+```
+
+**วิธีสั่งรันผ่าน Docker:**
+
+```bash
+docker compose --env-file .env.real up -d --build
+```
+
+---
+
+## 2️⃣ ไฟล์สำหรับโหมดจำลอง (`guest.env`)
+
+สร้างไฟล์ชื่อ **`guest.env`** ไว้ที่ Root Directory เช่นเดียวกัน สำหรับใช้พรีเซนต์งานหรือทดสอบระบบโดยไม่ต้องต่อเซิร์ฟเวอร์จริง:
+
+```env
+NUXT_PUBLIC_GUEST_MODE=true
+NUXT_PUBLIC_MAINTENANCE_MODE=false
+NUXT_PUBLIC_API_BASE_URL=/api/mock-energy
+MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+```
+
+**วิธีสั่งรันผ่าน Docker:**
+
+```bash
+docker compose --env-file guest.env up -d --build
+```
+
+---
+
+## 🛠️ ข้อควรระวังในการปรับเปลี่ยนไฟล์ `.env`
+
+### 1. กฎการตั้งชื่อตัวแปรของ Nuxt 3
+ตัวแปรใดๆ ที่ต้องการให้ฝั่งหน้าบ้าน (Client-side) มองเห็น จะต้องขึ้นต้นด้วย `NUXT_PUBLIC_` เสมอ
+
+เช่น:
+- `NUXT_PUBLIC_API_BASE_URL`
+- `NUXT_PUBLIC_GUEST_MODE`
+
+### 2. การล้างแคช Docker ทุกครั้งที่สลับโหมด
+เนื่องจากตัวแปรใน Environment จะถูกฝังตอน Build Docker หากสลับไฟล์ `.env` แล้วข้อมูลไม่เปลี่ยน แนะนำให้สั่งปิดและลบ Container เก่าก่อนทุกครั้งด้วยคำสั่ง:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+### 3. การรักษาความปลอดภัย (Git Security)
+อย่าลืมใส่ชื่อไฟล์ `.env`, `.env.real`, และ `guest.env` ลงใน `.gitignore` เพื่อป้องกันไม่ให้อัปโหลดไฟล์ตั้งค่าที่มีความอ่อนไหวขึ้นไปบน GitHub
+
+```gitignore
+.env
+.env.real
+guest.env
+```
+
+---
+
+## 📋 สรุปแบบเปรียบเทียบ
+
+| รายการ | โหมดใช้งานจริง (`.env.real`) | โหมดจำลอง (`guest.env`) |
+|---|---|---|
+| ไฟล์ Environment | `.env.real` | `guest.env` |
+| `NUXT_PUBLIC_GUEST_MODE` | `false` | `true` |
+| `NUXT_PUBLIC_MAINTENANCE_MODE` | `false` | `false` |
+| `NUXT_PUBLIC_API_BASE_URL` | `https://greatways.net` | `/api/mock-energy` |
+| คำสั่งรัน | `docker compose --env-file .env.real up -d --build` | `docker compose --env-file guest.env up -d --build` |

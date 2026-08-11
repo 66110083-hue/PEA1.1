@@ -29,7 +29,7 @@ const submitLogin = () => {
     <div class="login-card">
       <div class="login-header">
         <img src="/logo.png" alt="logo" class="login-logo" />
-        <h2>PEA Energy Monitor</h2>
+        <h2>PEA Balance Building</h2>
         <p>กรุณาเข้าสู่ระบบเพื่อใช้งานระบบมอนิเตอร์</p>
       </div>
 
