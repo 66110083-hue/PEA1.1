@@ -12,60 +12,63 @@ npm install
 npm run dev
 # → http://localhost:3000
 ```
+🐳 การรันผ่าน Docker (Environment Switching)
+โปรเจกต์นี้รองรับการสลับโหมดการทำงานระหว่าง ระบบจริง และ โหมดผู้เยี่ยมชม (Guest Mode) ผ่านไฟล์ Environment โดยใช้ Nitro Server ใน Nuxt 3 เป็นตัวจำลอง API ฝั่งซ้าย
+
+1. โหมดใช้งานจริง (Production Data)
+เชื่อมต่อกับ API หลักของระบบ:
+Bash
+docker compose --env-file .env.real up -d --build
+
+3. โหมดผู้เยี่ยมชม (Guest / Demo Mode)
+จำลองข้อมูลผ่าน Nuxt Server API ภายใน (server/api/mock-energy.ts):
+
+Bash
+docker compose --env-file guest.env up -d --build
 
 ## 📁 โครงสร้างไฟล์
 
-```
-powervision/
-├── app.vue                        # Layout หลัก + Sidebar + Topbar
-├── assets/css/main.css            # Global CSS (design tokens, components)
+PEA1.1/
+├── assets/
+│   └── css/
+│       ├── dashboard-compact.css
+│       └── main.css
+├── components/                 
 ├── composables/
-│   ├── useMockData.ts             # ← Mock data ทั้งหมดอยู่ที่นี่
-│   └── useChart.ts                # Chart.js helper
-└── components/
-    ├── ChartLegend.vue            # Legend component ใช้ร่วม
-    ├── PageOverview.vue           # หน้าภาพรวม
-    ├── PageMap.vue                # หน้าแผนที่จุดติดตั้ง
-    ├── PageRealtime.vue           # หน้าค่าเรียลไทม์ (Live)
-    ├── PageHistory.vue            # หน้าข้อมูลย้อนหลัง
-    ├── PageBreakeven.vue          # หน้าจุดคุ้มทุน
-    ├── PageAlerts.vue             # หน้าการแจ้งเตือน
-    └── PageSettings.vue          # หน้าตั้งค่า
+│   ├── useAnalysisChart.ts
+│   ├── useChart.ts
+│   ├── useDashboard.ts
+│   ├── useEnergyChart.ts
+│   ├── useEnergyData.ts
+│   ├── usePhaseSelection.ts
+│   ├── useSettings.ts
+│   ├── useSiteData.ts
+│   └── useTransformer.ts
+├── layouts/
+│   ├── blank.vue
+│   └── default.vue
+├── pages/
+│   ├── alerts.vue
+│   ├── analysis.vue
+│   ├── index.vue
+│   ├── login.vue
+│   ├── overview.vue
+│   ├── PageBreakeven.vue
+│   ├── PageMap.vue
+│   └── settings.vue
+├── server/
+│   └── api/
+│       └── mock-energy.ts      # 🟢 Nitro API สำหรับจำลองข้อมูลใน Guest Mode
+├── nuxt.config.ts
+└── Dockerfile / docker-compose.yml
 ```
-
-## 🔌 วิธีเชื่อม API จริง
-
-Mock data ทั้งหมดรวมไว้ใน `composables/useMockData.ts`
-แต่ละ function ตรงกับ 1 endpoint:
-
-| Function | Endpoint ตัวอย่าง |
-|---|---|
-| `getSummaryMetrics()` | `GET /api/meters/summary` |
-| `getLivePhase()` | `GET /api/meters/{id}/live` |
-| `getHourlyData()` | `GET /api/meters/{id}/energy?period=hourly` |
-| `getRealtimeData()` | `GET /api/meters/{id}/realtime` |
-| `getHistoryData(period)` | `GET /api/meters/{id}/history?period=day\|month\|year` |
-| `getAverages()` | `GET /api/meters/{id}/averages` |
-| `getBreakevenData(cost, rate)` | `GET /api/analysis/breakeven` |
-| `sites` | `GET /api/sites` |
-| `alerts` | `GET /api/alerts` |
-
-**ขั้นตอนเชื่อม:**
-1. สร้าง `composables/useApiData.ts` (copy structure จาก useMockData.ts)
-2. แทนที่ return values ด้วย `await $fetch('/api/...')`
-3. เปลี่ยน import ในทุก Page component จาก `useMockData` → `useApiData`
-
-## 🎨 Design Tokens
-
-แก้ไข CSS variables ใน `assets/css/main.css`:
-```css
-:root {
-  --color-green: #1D9E75;   /* สีหลัก */
-  --sidebar-w: 228px;        /* ความกว้าง sidebar */
-  --font-sans: 'IBM Plex Sans Thai', sans-serif;
-}
-```
-
+การเชื่อมต่อ API หลัก (Real Endpoints)
+ระบบดึงข้อมูลผ่าน Endpoint จริงของระบบ (กรณีปิด Guest Mode):
+รายละเอียด,Endpoint ตัวอย่าง
+รายการจุดติดตั้งทั้งหมด,GET /api/site/list
+ข้อมูลอุปกรณ์ / Transformer,GET /api/device/list
+บันทึกล่าสุด (Last Record),GET /api/measure/lastrecord?source=site&siteid={id}
+ข้อมูลประวัติการใช้พลังงาน (กราฟ),GET /api/measure?source=site&siteid={id}&start={date}&end={date}
 ## 📦 Dependencies
 
 - `nuxt` ^3.10
