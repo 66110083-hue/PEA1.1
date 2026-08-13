@@ -83,12 +83,15 @@ const gauges = computed(() => {
     { label: 'Voltage L1',     value: l.A?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
     { label: 'Voltage L2',     value: l.B?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
     { label: 'Voltage L3',     value: l.C?.voltage ?? 0, min: 180, max: 260, unit: 'V'    },
+    
     { label: 'Current L1',     value: l.A?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
     { label: 'Current L2',     value: l.B?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
     { label: 'Current L3',     value: l.C?.current ?? 0, min: 0,   max: 600, unit: 'A'    },
-    { label: 'Active P L1',    value: l.A?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
-    { label: 'Active P L2',    value: l.B?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
-    { label: 'Active P L3',    value: l.C?.power   ?? 0, min: 0,   max: 200, unit: 'kW',  sub: 'Import' },
+    
+    // 👇 แก้กราฟ 3 ตัวหลังให้ดึงค่า Total (P, Q, PF)
+    { label: 'Total Active P',  value: l.total?.power ?? 0,    min: 0, max: 50,  unit: 'kW'   },
+    { label: 'Total Reactive Q',value: l.total?.reactive ?? 0, min: 0, max: 50,  unit: 'kVAR' },
+    { label: 'Power Factor',    value: l.total?.pf ?? 0,       min: 0, max: 1,   unit: ''     }
   ]
 })
 </script>
@@ -145,7 +148,12 @@ const gauges = computed(() => {
             </div>
           </div>
 
-          <div class="td-section"><i class="ti ti-gauge"/> Current Values</div>
+          <div class="td-section" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+  <div><i class="ti ti-gauge"/> Current Values</div>
+  <div style="font-size: 11px; font-weight: normal; color: var(--color-text-3); text-transform: none; letter-spacing: normal;">
+    <span class="td-live-dot"/> อัปเดตล่าสุด: {{ lastUpdateText }}
+  </div>
+</div>
           <div class="td-gauges-grid">
             <div v-for="g in gauges" :key="g.label" class="td-gauge-item">
               <svg width="100" height="72" viewBox="0 0 100 72">

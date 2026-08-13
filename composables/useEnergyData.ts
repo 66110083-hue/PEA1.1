@@ -44,8 +44,16 @@ export const useEnergyData = (
 
   // ─── 2. แปลงข้อความหัวการ์ดให้ออกมาเป็น วัน/เดือน/ปี + เวลา ───
   const lastUpdateText = computed(() => {
+    const point = lastActivePoint.value
     const snap = realtimeSnapshot.value
-    const rawDate = snap ? new Date() : lastActivePoint.value?.timestamp
+
+    // 1️⃣ ดึงเวลาจากกราฟ (lastActivePoint) เป็นอันดับแรก!
+    let rawDate = point?.timestamp
+
+    // 2️⃣ ถ้าไม่มีกราฟ ค่อยอิงเวลาปัจจุบันตอนที่ดึง Realtime มาโชว์
+    if (!rawDate && snap) {
+      rawDate = new Date()
+    }
 
     if (!rawDate) return '--/--/---- --:--'
 
@@ -54,41 +62,56 @@ export const useEnergyData = (
 
     const day   = String(d.getDate()).padStart(2, '0')
     const month = String(d.getMonth() + 1).padStart(2, '0')
-    const year  = d.getFullYear() // ค.ศ. เช่น 2026
+    const year  = d.getFullYear() // ค.ศ.
     const hours = String(d.getHours()).padStart(2, '0')
     const mins  = String(d.getMinutes()).padStart(2, '0')
 
     return `${day}/${month}/${year} ${hours}:${mins} น.`
   })
 
-  // ─── 3. ดึงตัวเลข A, B, C มาจาก lastActivePoint ตัวเดียวกันเป๊ะ ───
+ // ─── 3. ดึงตัวเลขมาแสดงที่เกจ (เน้นข้อมูลจากกราฟเป็นหลัก) ───
   const latest = computed(() => {
+    const point = lastActivePoint.value
+    
+    // 1️⃣ ถ้ามีข้อมูลกราฟ ให้ใช้ข้อมูลจากปลายกราฟเสมอ!
+    if (point) {
+      const result = PHASES.reduce((acc: any, p: any) => {
+        acc[p.id] = {
+          current: point.current?.[p.id] ?? 0,
+          voltage: point.voltage?.[p.id] ?? 0,
+          power:   point.power?.[p.id]   ?? 0,
+        }
+        return acc
+      }, {})
+
+      // ดึงข้อมูลผลรวมจากกราฟ
+      result.total = {
+        power: point.powerTotal ?? 0,
+        reactive: point.reactiveTotal ?? 0,
+        apparent: point.apparentTotal ?? 0,
+        pf: point.powerFactor ?? 0
+      }
+      return result
+    }
+
+    // 2️⃣ ถ้าไม่มีข้อมูลกราฟเลย (กราฟว่าง) ค่อยดึงค่า Realtime มาโชว์แก้ขัด
     const snap = realtimeSnapshot.value
     if (snap) {
       return {
-        A: { current: snap.currentA, voltage: snap.voltageA, power: snap.activePowerImportA },
-        B: { current: snap.currentB, voltage: snap.voltageB, power: snap.activePowerImportB },
-        C: { current: snap.currentC, voltage: snap.voltageC, power: snap.activePowerImportC },
+        A: { current: snap.currentA ?? 0, voltage: snap.voltageA ?? 0, power: snap.activePowerImportA ?? 0 },
+        B: { current: snap.currentB ?? 0, voltage: snap.voltageB ?? 0, power: snap.activePowerImportB ?? 0 },
+        C: { current: snap.currentC ?? 0, voltage: snap.voltageC ?? 0, power: snap.activePowerImportC ?? 0 },
+        total: { power: 0, reactive: 0, apparent: 0, pf: 0 } 
       }
     }
 
-    const point = lastActivePoint.value
-    if (!point) {
-      return {
-        A: { current: 0, voltage: 0, power: 0 },
-        B: { current: 0, voltage: 0, power: 0 },
-        C: { current: 0, voltage: 0, power: 0 },
-      }
+    // 3️⃣ ถ้าไม่มีข้อมูลใดๆ เลย ให้ส่งกลับเป็น 0
+    return {
+      A: { current: 0, voltage: 0, power: 0 },
+      B: { current: 0, voltage: 0, power: 0 },
+      C: { current: 0, voltage: 0, power: 0 },
+      total: { power: 0, reactive: 0, apparent: 0, pf: 0 }
     }
-
-    return PHASES.reduce((acc: any, p: any) => {
-      acc[p.id] = {
-        current: point.current?.[p.id] ?? 0,
-        voltage: point.voltage?.[p.id] ?? 0,
-        power:   point.power?.[p.id]   ?? 0,
-      }
-      return acc
-    }, {})
   })
 
   // ─── 4. สถิติประมวลผล (แสดงค่าวิเคราะห์เชิงลึก พร้อม วันที่และเวลา) ───
