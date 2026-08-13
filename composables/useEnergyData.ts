@@ -259,9 +259,32 @@ export const useEnergyData = (
   }
 
   // API ต้องการ "d/m/yyyy" — แปลงจาก "yyyy-mm-dd"
-  function toApiDateFormat(isoDate: string): string {
-    const [y, m, d] = isoDate.split('-')
-    return `${+d}/${+m}/${y}` 
+  // ฟังก์ชันแปลงวันที่แบบครอบจักรวาล รองรับทั้ง -, / และ Date Object
+  function toApiDateFormat(dateStr: any): string {
+    if (!dateStr) return ''
+
+    const str = String(dateStr).trim()
+
+    // กรณีที่ 1: รูปแบบ YYYY-MM-DD (เช่น 2026-06-09)
+    if (str.includes('-')) {
+      const [y, m, d] = str.split('-')
+      return `${+d}/${+m}/${y}`
+    }
+
+    // กรณีที่ 2: รูปแบบ DD/MM/YYYY (เช่น 09/06/2026)
+    if (str.includes('/')) {
+      const [d, m, y] = str.split('/')
+      return `${+d}/${+m}/${y}`
+    }
+
+    // กรณีที่ 3: ส่งมาเป็น Date Object 
+    const d = new Date(dateStr)
+    if (!isNaN(d.getTime())) {
+      return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+    }
+
+    // ถ้าไม่ตรงเงื่อนไขเลย ให้ส่งกลับไปตรงๆ
+    return str
   }
 
   function toNum(v: unknown): number {
