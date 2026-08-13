@@ -2,7 +2,7 @@ services:
   pea-energy-app:
     build: .
     ports:
-      - "3000:3000"
+      - "3030:3000"
     env_file:             
       - /home/hogzilla/.env.real
     volumes:
