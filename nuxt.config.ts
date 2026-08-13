@@ -2,7 +2,7 @@ export default defineNuxtConfig({
   // เพิ่มส่วน devServer เข้ามาเพื่อให้มือถือในวง Wi-Fi เดียวกันเข้ามาดูได้
   devServer: {
     host: '0.0.0.0', 
-    port: 3000
+    port: 3030
   },
 
   // ─── Runtime Config สำหรับดึงค่าจาก .env หรือ Docker Env ───

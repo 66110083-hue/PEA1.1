@@ -3,11 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "nuxt dev --port 3030",
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
+    
   },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
