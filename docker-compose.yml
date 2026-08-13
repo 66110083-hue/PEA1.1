@@ -7,7 +7,7 @@ services:
       - PORT=3030
       - NUXT_PORT=3030
     env_file:             
-      - /home/hogzilla/.env.real
+      - ./.env.real
     volumes:
-      - /home/hogzilla/data:/app/data
+      - ./data:/app/data
     restart: always
