@@ -44,6 +44,8 @@ export const useEnergyData = (
 
   // ─── 2. แปลงข้อความหัวการ์ดให้ออกมาเป็น วัน/เดือน/ปี + เวลา ───
   const lastUpdateText = computed(() => {
+    // 🚧 ถ้ากำลังโหลด ให้ขึ้นข้อความรอ
+    if (isLoading.value) return 'กำลังโหลดข้อมูล...'
     const point = lastActivePoint.value
     const snap = realtimeSnapshot.value
 
@@ -71,6 +73,16 @@ export const useEnergyData = (
 
  // ─── 3. ดึงตัวเลขมาแสดงที่เกจ (เน้นข้อมูลจากกราฟเป็นหลัก) ───
   const latest = computed(() => {
+
+    // 🚧 ดักไว้ก่อน: ถ้า API กำลังโหลดข้อมูลอยู่ ให้โชว์ 0 ทั้งหมดไปก่อน จะได้ไม่กระพริบ
+    if (isLoading.value) {
+      return {
+        A: { current: 0, voltage: 0, power: 0 },
+        B: { current: 0, voltage: 0, power: 0 },
+        C: { current: 0, voltage: 0, power: 0 },
+        total: { power: 0, reactive: 0, apparent: 0, pf: 0 }
+      }
+    }
     const point = lastActivePoint.value
     
     // 1️⃣ ถ้ามีข้อมูลกราฟ ให้ใช้ข้อมูลจากปลายกราฟเสมอ!
