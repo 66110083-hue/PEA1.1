@@ -1,25 +1,7 @@
 export default defineNuxtConfig({
-  // เพิ่มส่วน devServer เข้ามาเพื่อให้มือถือในวง Wi-Fi เดียวกันเข้ามาดูได้
-  devServer: {
-    host: '0.0.0.0', 
-    port: 3030
-  },
-
-  // ─── Runtime Config สำหรับดึงค่าจาก .env หรือ Docker Env ───
-  runtimeConfig: {
-    public: {
-      apiBaseUrl: process.env.API_BASE_URL || 'https://greatways.net',
-      mapTileUrl: process.env.MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      
-      // 🔥 เพิ่ม 2 ตัวแปรนี้เข้ามาเพื่อให้สลับโหมดผ่าน Docker ได้ทันที
-      maintenanceMode: process.env.VITE_MAINTENANCE_MODE || 'false',
-      guestMode: process.env.VITE_GUEST_MODE || 'false',
-    }
-  },
-
-  devtools: { enabled: true },
-  css: ['~/assets/css/main.css'],
+  // ─── ยุบรวม app ไว้ที่เดียวกัน ───
   app: {
+    baseURL: '/platform/',
     head: {
       title: 'PEA-Balance Building',
       link: [
@@ -40,6 +22,26 @@ export default defineNuxtConfig({
       ]
     }
   },
-  
+
+  // เพิ่มส่วน devServer เข้ามาเพื่อให้มือถือในวง Wi-Fi เดียวกันเข้ามาดูได้
+  devServer: {
+    host: '0.0.0.0', 
+    port: 3030
+  },
+
+  // ─── Runtime Config สำหรับดึงค่าจาก .env หรือ Docker Env ───
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.API_BASE_URL || 'https://greatways.net',
+      mapTileUrl: process.env.MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      
+      // 🔥 เพิ่ม 2 ตัวแปรนี้เข้ามาเพื่อให้สลับโหมดผ่าน Docker ได้ทันที
+      maintenanceMode: process.env.VITE_MAINTENANCE_MODE || 'false',
+      guestMode: process.env.VITE_GUEST_MODE || 'false',
+    }
+  },
+
+  devtools: { enabled: true },
+  css: ['~/assets/css/main.css'],
   modules: []
 })
