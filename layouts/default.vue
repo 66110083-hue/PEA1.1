@@ -46,13 +46,13 @@ onBeforeUnmount(() => { if (clockTimer) clearInterval(clockTimer) })
   <div class="layout">
     <!-- Sidebar -->
     <aside class="sidebar">
-      <div class="sidebar-logo">
+      <NuxtLink to="/" class="sidebar-logo" style="text-decoration: none; color: inherit; cursor: pointer;">
         <div class="sidebar-logo-icon"><img src="/logo.png" alt="logo" /></div>
         <div>
           <div class="sidebar-logo-text">PEA</div>
           <div class="sidebar-logo-sub">Balance Building</div>
         </div>
-      </div>
+      </NuxtLink>
 
       <div class="sidebar-section-label">หน้าหลัก</div>
       <NuxtLink v-for="item in navMain" :key="item.to" :to="item.to" class="nav-link" active-class="active">
