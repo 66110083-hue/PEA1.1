@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useSettings } from '~/composables/useSettings'
 import UserTab from '~/components/PageSettings/UserTab.vue'
-import LimiterTab from '~/components/PageSettings/LimiterTab.vue'
 import UserModal from '~/components/PageSettings/UserModal.vue'
 
 const { activeTab } = useSettings()
@@ -16,14 +15,11 @@ const { activeTab } = useSettings()
         <button class="tab-btn" :class="{ active: activeTab === 'user' }" @click="activeTab = 'user'">
           User
         </button>
-        <button class="tab-btn" :class="{ active: activeTab === 'limiter' }" @click="activeTab = 'limiter'">
-          Limiter
-        </button>
+  
       </div>
     </div>
 
     <UserTab v-if="activeTab === 'user'" />
-    <LimiterTab v-if="activeTab === 'limiter'" />
 
     <UserModal />
 
@@ -66,7 +62,6 @@ const { activeTab } = useSettings()
 .sg-btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; display: flex; align-items: center; gap: 6px; }
 .sg-btn-primary { background: #378ADD; color: white; }
 .sg-btn-outline { background: #f4f5f7; color: var(--color-text-2); border: 1px solid var(--color-border-md); }
-.limiter-header { display: flex; align-items: center; gap: 40px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--color-border); }
 .device-select label { display: block; font-size: 12px; color: var(--color-text-2); margin-bottom: 6px; }
 .device-select select { padding: 8px 12px; border: 1px solid var(--color-border-md); border-radius: 6px; width: 200px; }
 .toggle-group { display: flex; align-items: center; gap: 10px; }

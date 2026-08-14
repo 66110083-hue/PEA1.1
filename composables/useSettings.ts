@@ -11,15 +11,6 @@ export interface User {
   province?: string
 }
 
-export interface LimiterConfig {
-  enabled: boolean
-  deviceType: string
-  minV: number
-  maxV: number
-  maxA: number
-  maxW: number
-  maxVAR: number
-}
 
 // ── State ส่วนกลาง (Singleton) ──
 const activeTab = ref('user')
@@ -36,18 +27,9 @@ const initialUsers: User[] = [
   { id: 4, firstName: 'John', lastName: 'Doe', email: 'john.doe@gmail.com', phone: '0891234567', role: 'Viewer' },
 ]
 
-const initialLimiter: LimiterConfig = {
-  enabled: true,
-  deviceType: 'Transformer',
-  minV: 200,
-  maxV: 240,
-  maxA: 50,
-  maxW: 15000,
-  maxVAR: 5000
-}
 
 const users = ref<User[]>(initialUsers)
-const limiter = ref<LimiterConfig>(initialLimiter)
+
 
 let isInitialized = false
 
@@ -60,10 +42,6 @@ export function useSettings() {
       try { users.value = JSON.parse(savedUsers) } catch (e) { console.error(e) }
     }
 
-    const savedLimiter = localStorage.getItem('sg_settings_limiter')
-    if (savedLimiter) {
-      try { limiter.value = JSON.parse(savedLimiter) } catch (e) { console.error(e) }
-    }
 
     isInitialized = true
 
@@ -71,9 +49,6 @@ export function useSettings() {
       localStorage.setItem('sg_settings_users', JSON.stringify(newVal))
     }, { deep: true })
 
-    watch(limiter, (newVal) => {
-      localStorage.setItem('sg_settings_limiter', JSON.stringify(newVal))
-    }, { deep: true })
   }
 
   const filteredUsers = computed(() => {
@@ -121,15 +96,10 @@ export function useSettings() {
     }
   }
 
-  function saveLimiterConfig() {
-    localStorage.setItem('sg_settings_limiter', JSON.stringify(limiter.value))
-    alert('บันทึกการตั้งค่า Limiter เรียบร้อยแล้ว!')
-  }
 
   return {
     activeTab,
     searchUser, showAddUser, users, newUser, filteredUsers, 
     openAddUser, editUser, saveUser, deleteUser,
-    limiter, saveLimiterConfig
   }
 }
