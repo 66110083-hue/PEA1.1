@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useSiteData } from '~/composables/useSiteData'
 
 const props = defineProps<{
   loading?: boolean
   initSiteId?: string
-  hideSiteSelector?: boolean   // ✅ เพิ่ม: ซ่อน dropdown เมื่อ site ถูกกำหนดตายตัวแล้ว (เช่นหน้า Transformer Detail)
-  initStartDate?: string       // ✅ เพิ่ม: ISO date string (YYYY-MM-DD) ตั้งค่าเริ่มต้นวันที่เริ่มต้น
-  initEndDate?: string         // ✅ เพิ่ม: ISO date string (YYYY-MM-DD) ตั้งค่าเริ่มต้นวันที่สิ้นสุด
+  hideSiteSelector?: boolean
+  // คง props ไว้เผื่อโค้ดหน้าอื่นส่งมาจะได้ไม่ Error แต่เราจะไม่เอาไปใช้แล้ว
+  initStartDate?: string
+  initEndDate?: string
 }>()
 
 const emit = defineEmits(['apply', 'update:location'])
@@ -16,19 +17,34 @@ const { allSites } = useSiteData()
 
 const selectedSiteId = ref(props.initSiteId || '')
 
-// ✅ ถ้ามี initStartDate/initEndDate ส่งมา ใช้ค่านั้น ไม่งั้น fallback เป็นวันนี้เหมือนเดิม
-const startDate = ref(props.initStartDate ? new Date(props.initStartDate) : new Date())
-const endDate   = ref(props.initEndDate   ? new Date(props.initEndDate)   : new Date())
+// ✅ 1. ฟังก์ชันหา "วันปัจจุบัน"
+const getToday = () => {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d
+}
 
-const toISO = (d: Date) => d.toISOString().split('T')[0]
+// ✅ 2. บังคับกำหนดค่าเริ่มต้นเป็น getToday() ล้วนๆ (ไม่สนใจ props แล้ว)
+const startDate = ref(getToday())
+const endDate   = ref(getToday())
+
+// 🔥 3. ลบ watch ของ initStartDate / initEndDate ทิ้งไปเลย เพื่อกันการโดนเขียนทับ
+
+// ✅ 4. ดักไว้อีกชั้น: ทันทีที่โหลด Component เสร็จ บังคับเซ็ตเป็น "วันนี้" อีกรอบ
+onMounted(() => {
+  startDate.value = getToday()
+  endDate.value = getToday()
+})
+
+const toISO = (d: Date) => {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 watch(() => props.initSiteId, (val) => { selectedSiteId.value = val || '' })
 
-// ✅ sync ค่าจาก parent ถ้า initStartDate/initEndDate เปลี่ยนทีหลัง (เช่น mount แล้ว resolve เสร็จ)
-watch(() => props.initStartDate, (val) => { if (val) startDate.value = new Date(val) })
-watch(() => props.initEndDate,   (val) => { if (val) endDate.value   = new Date(val) })
-
-// ✅ ชื่อ site ที่จะโชว์แบบ read-only ตอนซ่อน dropdown
 const lockedSiteName = computed(() => {
   const s = allSites.find(s => s.id === selectedSiteId.value)
   return s ? `[${s.id}] ${s.name}` : selectedSiteId.value || '-'
