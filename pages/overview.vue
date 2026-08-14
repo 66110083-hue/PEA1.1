@@ -275,10 +275,11 @@ function onMapSelect(id: string) {
         </div>
       </div>
 
-      <template v-if="hasData">
+     <template v-if="hasData">
         <div :class="activeMetric === 'power' ? 'single-column-row' : 'equal-height-row'">
           
-          <div class="card dashboard-card">
+          <!-- 🔥 เติม v-if="statistics && statistics.length > 0" ตรงกล่องนี้เลยครับ -->
+          <div class="card dashboard-card" v-if="statistics && statistics.length > 0">
             <div class="card-inner">
               <div class="card-title mb-4"><i class="ti ti-calculator text-blue" /> <span>สถิติประมวลผล</span></div>
               <div :class="activeMetric === 'power' ? 'stats-power-grid' : 'card-body-content'">

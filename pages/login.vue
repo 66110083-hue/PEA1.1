@@ -12,7 +12,7 @@ definePageMeta({
 })
 
 const submitLogin = () => {
-  if (username.value === 'admin' && password.value === '1234') {
+  if (username.value === 'admin@greatways.ne' && password.value === 'GreatwayS') {
     // 3. บันทึกสถานะว่าล็อกอินผ่านแล้ว
     localStorage.setItem('isLoggedIn', 'true')
     

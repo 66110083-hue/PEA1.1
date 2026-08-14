@@ -126,9 +126,12 @@ export const useEnergyData = (
     }
   })
 
-  // ─── 4. สถิติประมวลผล (แสดงค่าวิเคราะห์เชิงลึก พร้อม วันที่และเวลา) ───
+  // ─── 4. สถิติประมวลผล (ซ่อนการ์ดทั้งหมดเมื่อกดดู Power) ───
   const statistics = computed(() => {
     const key = activeMetric.value
+
+    // 🔥 เงื่อนไขสำคัญ: ถ้าดูกราฟ Power อยู่ ให้คืนค่าว่าง (หน้าเว็บจะซ่อนการ์ดสถิติไปเลย)
+    if (key === 'power') return []
     if (!allData.value.length) return []
 
     // ฟังก์ชันช่วยจัด Format วันที่เวลาให้เป็น DD/MM HH:mm
@@ -170,7 +173,7 @@ export const useEnergyData = (
     let unbalanceColor = 'var(--color-blue)'
 
     if (key === 'voltage') {
-       unbalanceVal = 999 // เริ่มต้นด้วยค่าสูงไว้ก่อน
+       unbalanceVal = 999 
        allData.value.forEach(d => {
          const vs = [d[key]?.A ?? 0, d[key]?.B ?? 0, d[key]?.C ?? 0].filter(v => v > 100)
          if (vs.length > 0) {
@@ -181,7 +184,8 @@ export const useEnergyData = (
            }
          }
        })
-       unbalanceColor = unbalanceVal < 200 ? 'var(--color-orange)' : 'var(--color-blue)'
+       if (unbalanceVal === 999) unbalanceVal = 0 // กันเหนียวกรณีไม่มีข้อมูล
+       unbalanceColor = unbalanceVal < 200 && unbalanceVal > 0 ? 'var(--color-orange)' : 'var(--color-blue)'
     } else {
        allData.value.forEach(d => {
          const a = d[key]?.A ?? 0, b = d[key]?.B ?? 0, c = d[key]?.C ?? 0
@@ -203,14 +207,14 @@ export const useEnergyData = (
       },
       { 
         label: `สูงสุด (Peak)`, 
-        value: `${maxVal.toFixed(1)} ${unit.value}`,
-        sub: `${peakInfo} ${peakTime}`, // ส่งเวลาไปให้หน้า Vue
+        value: `${Math.max(0, maxVal).toFixed(1)} ${unit.value}`,
+        sub: `${peakInfo} ${peakTime}`, 
         color: 'var(--color-red)'  
       },
       { 
         label: unbalanceLabel,  
         value: `${unbalanceVal.toFixed(1)} ${key === 'voltage' ? unit.value : ''}`,
-        sub: unbalanceTime, // ส่งเวลาไปให้หน้า Vue
+        sub: unbalanceTime, 
         color: unbalanceColor 
       },
     ]
@@ -235,8 +239,8 @@ export const useEnergyData = (
     if (!snap) return
 
     const base = {
-      current: { A: snap.currentA,          B: snap.currentB,          C: snap.currentC           },
-      voltage: { A: snap.voltageA,           B: snap.voltageB,           C: snap.voltageC           },
+      current: { A: snap.currentA,          B: snap.currentB,          C: snap.currentC          },
+      voltage: { A: snap.voltageA,           B: snap.voltageB,           C: snap.voltageC          },
       power:   { A: snap.activePowerImportA, B: snap.activePowerImportB, C: snap.activePowerImportC },
     }
 
